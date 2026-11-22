@@ -1,0 +1,16 @@
+{
+  "name": "tictacbase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "On-chain Tic-Tac-Toe on Base with stakes",
+  "scripts": {
+    "compile": "node scripts/compile.js",
+    "test": "node test/TicTacBase.test.js && node test/Computer.test.js"
+  },
+  "devDependencies": {
+    "solc": "0.8.24",
+    "ganache": "7.9.2",
+    "ethers": "6.17.0"
+  },
+  "license": "MIT"
+}
