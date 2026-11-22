@@ -481,7 +481,9 @@ async function pickWallet(interactive){
   if(!w) return null;
   if(interactive) store.set("ttb_wallet",w.info.rdns); return w.provider;
 }
+const SITE_URL="https://0xdonaldjtrump.github.io/tictacbase/";
 function noWalletHelp(){
+  if(location.protocol==="file:"){ hint("MetaMask does not work on a file opened from your disk. Open the online version: "+SITE_URL); const h=$("hint"); h.innerHTML=`MetaMask does not work on a file opened from your disk.<br><a href="${SITE_URL}" style="color:#fff;font-weight:900">Open the online version: ${SITE_URL}</a>`; return; }
   $("noWallet").classList.remove("hidden");
   hint("No wallet detected in this window. If you are looking at this page inside the Claude app's browser panel, that panel has no MetaMask — open "+location.href.split("?")[0]+" in your own Chrome where MetaMask is installed (on a phone: inside the MetaMask app → Browser).");
   setTimeout(()=>hint(""),15000);
@@ -616,6 +618,7 @@ function initSetup(){
   $("btnDeploy").onclick=async()=>{
     try{
       step("Step 1: unlock your wallet and approve the connection (click the fox icon at the top right of Chrome if no window appears).");
+      if(location.protocol==="file:"){ step("MetaMask does not work on a file opened from your disk. Open the online version instead: "+SITE_URL); noWalletHelp(); return; }
       if(!await connectWallet()){ step(eth?"":"No wallet detected here. If you see this inside the Claude app's browser panel, open this link in your own Chrome with MetaMask (or in the MetaMask app on your phone)."); return; }
       step("");
       if(!await modal("Deploy TicTacBase",`Deploy from ${short(account)}? All move fees will go to this wallet.`,"Deploy")) return;
