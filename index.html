@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TicTacBase — Tic-Tac-Toe on Base with real stakes</title>
+<meta name="description" content="TicTacBase: on-chain Tic-Tac-Toe on Base network. Stake $0.10–$5, 10 seconds per move, winner takes the pot.">
+<meta name="theme-color" content="#0a1020">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230052ff'/%3E%3Cpath d='M16 16l14 14M30 16L16 30' stroke='%23fff' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='42' cy='42' r='9' fill='none' stroke='%23ffb020' stroke-width='6'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#070c18; --bg2:#0d1528; --card:#111b33; --card2:#16223f; --line:#24335a; --ink:#eaf0ff; --muted:#8e9bbd;
+  --blue:#2f6bff; --blue2:#0052ff; --x:#4d8bff; --o:#ffb020; --win:#22d37f; --bad:#ff5a67;
+  --r:18px; --shadow:0 18px 50px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:
+  radial-gradient(900px 500px at 15% -10%,rgba(47,107,255,.28),transparent 60%),
+  radial-gradient(700px 420px at 100% 100%,rgba(255,176,32,.14),transparent 60%),var(--bg);min-height:100vh}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:#8fb2ff}
+.hidden{display:none!important}
+.top{display:flex;align-items:center;gap:10px;padding:14px 20px;max-width:1100px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:19px;letter-spacing:.2px;cursor:pointer}
+.brand svg{width:34px;height:34px}
+.brand small{font-weight:700;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:5px}
+.brand small i{width:7px;height:7px;border-radius:50%;background:var(--win);display:inline-block}
+.sp{flex:1}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--ink)}
+.chip:hover{border-color:#3a4f86}
+.wrap{max-width:1100px;margin:0 auto;padding:6px 20px 40px}
+.card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+h1{font-size:44px;line-height:1.05;margin:10px 0 10px;letter-spacing:-.5px}
+h2{margin:0 0 12px;font-size:19px}
+.muted{color:var(--muted)}
+.btn{background:linear-gradient(180deg,#3d78ff,var(--blue2));color:#fff;border:0;border-radius:14px;padding:13px 22px;font-weight:800;font-size:16px;box-shadow:0 8px 24px rgba(0,82,255,.35)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:default;filter:none}
+.btn.ghost{background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--ink)}
+.btn.small{padding:8px 13px;font-size:13.5px;border-radius:11px}
+.btn.big{font-size:19px;padding:16px 26px;width:100%}
+.btn.warn{background:transparent;border:1px solid #5a2a35;color:#ff9aa3;box-shadow:none}
+.spin{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;display:inline-block;animation:sp .8s linear infinite;vertical-align:-3px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center;margin-top:30px}
+.hero p{font-size:17px;line-height:1.55;color:#c3cde6}
+.pills{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 24px}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.pill b{display:block;font-size:20px}
+.pill span{font-size:12.5px;color:var(--muted)}
+.rules{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:8px;color:#c3cde6;font-size:14.5px}
+.rules li::before{content:"✦ ";color:var(--o)}
+.demo{aspect-ratio:1;max-width:380px;margin:0 auto;width:100%}
+.note{font-size:12.5px;color:var(--muted);margin-top:16px;line-height:1.5}
+
+/* lobby */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.stakeShow{font-size:64px;font-weight:900;letter-spacing:-1px;margin:6px 0 0;background:linear-gradient(90deg,#fff,#9cc0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ethEq{color:var(--muted);font-size:14px;margin-bottom:16px}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:10px;border-radius:99px;background:linear-gradient(90deg,var(--blue) var(--p,20%),#22305a var(--p,20%));outline:none;margin:6px 0 4px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#fff;border:5px solid var(--blue);box-shadow:0 4px 14px rgba(0,0,0,.4);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#fff;border:5px solid var(--blue);cursor:pointer}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:18px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.quick button{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-weight:700;font-size:13px}
+.quick button.on{border-color:var(--blue);color:#9cc0ff}
+.sub{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.5}
+.list{display:flex;flex-direction:column;gap:8px;max-height:330px;overflow:auto}
+.row{display:flex;align-items:center;gap:12px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.row .amt{font-weight:900;font-size:18px;min-width:70px}
+.row .meta{flex:1;font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{color:var(--muted);text-align:center;padding:28px 10px;font-size:14px}
+.tag{font-size:11.5px;font-weight:800;border-radius:7px;padding:3px 7px}
+.t-won{background:rgba(34,211,127,.15);color:var(--win)} .t-lost{background:rgba(255,90,103,.15);color:var(--bad)} .t-draw{background:rgba(142,155,189,.15);color:#c3cde6} .t-play{background:rgba(47,107,255,.2);color:#9cc0ff} .t-open{background:rgba(255,176,32,.15);color:var(--o)}
+.statrow{display:flex;gap:10px;margin-bottom:12px}
+.stat{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--muted)}
+.wallet{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.wallet .bal{font-size:22px;font-weight:900}
+.mt{margin-top:18px}
+
+/* game */
+.game{display:grid;grid-template-columns:1fr minmax(300px,440px) 1fr;gap:20px;align-items:start;margin-top:8px}
+.side{display:flex;flex-direction:column;gap:12px}
+.player{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;transition:.2s}
+.player.turn{border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,107,255,.25)}
+.player.o.turn{border-color:var(--o);box-shadow:0 0 0 3px rgba(255,176,32,.2)}
+.mark{width:46px;height:46px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;flex:none}
+.mark svg{width:30px;height:30px}
+.player b{display:block}
+.player span{font-size:12.5px;color:var(--muted)}
+.pot{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.pot b{font-size:30px;display:block;color:var(--win)}
+.pot span{font-size:12.5px;color:var(--muted)}
+.banner{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;min-height:64px}
+.ring{width:64px;height:64px;position:relative;flex:none}
+.ring svg{width:64px;height:64px;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900}
+.turnText{font-size:20px;font-weight:900}
+.turnSub{font-size:13px;color:var(--muted)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;aspect-ratio:1;background:var(--line);padding:10px;border-radius:22px;box-shadow:var(--shadow)}
+.cell{background:linear-gradient(180deg,#121d38,#0e1730);border:0;border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;padding:0;transition:background .15s}
+.cell.can:hover{background:#18264a}
+.cell svg{width:62%;height:62%}
+.cell.pending svg{opacity:.45}
+.cell.win{background:rgba(34,211,127,.16);box-shadow:inset 0 0 0 3px var(--win)}
+.cell .bot{position:absolute;right:6px;top:4px;font-size:15px;opacity:.85}
+.draw-x line{stroke:var(--x);stroke-width:13;stroke-linecap:round;stroke-dasharray:120;stroke-dashoffset:120;animation:dr .35s ease forwards}
+.draw-x line:nth-child(2){animation-delay:.12s}
+.draw-o circle{stroke:var(--o);stroke-width:12;fill:none;stroke-dasharray:240;stroke-dashoffset:240;animation:dr .45s ease forwards}
+@keyframes dr{to{stroke-dashoffset:0}}
+.gfoot{text-align:center;font-size:12.5px;color:var(--muted);margin-top:12px}
+.overlay{position:fixed;inset:0;background:rgba(4,8,18,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}
+.result{max-width:400px;width:100%;text-align:center}
+.result .big{font-size:44px;font-weight:900;margin:6px 0}
+.result .acts{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.wait{max-width:480px;margin:40px auto;text-align:center}
+.pulse{width:90px;height:90px;margin:10px auto 18px;border-radius:50%;background:radial-gradient(circle,rgba(47,107,255,.6),transparent 70%);animation:pl 1.4s ease-in-out infinite;display:flex;align-items:center;justify-content:center}
+@keyframes pl{50%{transform:scale(1.15);opacity:.7}}
+.copy{display:flex;gap:8px;margin:14px 0}
+.copy input{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--ink);min-width:0}
+
+/* admin */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi span{font-size:12px;color:var(--muted)} .kpi b{display:block;font-size:20px;margin-top:3px}
+.frm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.frm label{min-width:190px;font-size:13.5px;color:var(--muted)}
+.frm input[type=number],.frm input[type=text]{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:130px}
+
+/* toasts & modal */
+#toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:60;width:min(92vw,440px)}
+.toast{background:#1b2950;border:1px solid #2c3f73;color:#fff;border-radius:12px;padding:11px 14px;font-size:14px;box-shadow:var(--shadow);animation:pop .2s ease}
+.toast.err{background:#4a1520;border-color:#7a2433}
+.toast.ok{background:#0f3d2a;border-color:#1c6b49}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.modal{position:fixed;inset:0;background:rgba(4,8,18,.7);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal .card{max-width:420px;width:100%}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.stepbox{background:rgba(47,107,255,.12);border:1px solid rgba(47,107,255,.4);border-radius:12px;padding:11px 14px;font-weight:600;margin-top:14px}
+code{background:var(--card2);border-radius:6px;padding:2px 6px;font-size:12.5px;word-break:break-all}
+
+@media (max-width:860px){
+  .hero,.grid2{grid-template-columns:1fr}
+  h1{font-size:34px}
+  .game{grid-template-columns:1fr}
+  .side{flex-direction:row}
+  .side>*{flex:1}
+  .side.right{order:3}
+  .stakeShow{font-size:52px}
+  .top{padding:12px 14px}
+  .wrap{padding:4px 14px 30px}
+  .player{padding:10px}
+  .mark{width:38px;height:38px}
+  #acctChip{display:none}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand" id="brand">
+    <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#0052ff"/><path d="M16 16l14 14M30 16L16 30" stroke="#fff" stroke-width="6" stroke-linecap="round"/><circle cx="42" cy="42" r="9" fill="none" stroke="#ffb020" stroke-width="6"/></svg>
+    <div>TicTacBase<small><i></i>on Base</small></div>
+  </div>
+  <div class="sp"></div>
+  <button class="chip hidden" id="adminChip">Admin</button>
+  <button class="chip hidden" id="soundChip" title="Sound">🔊</button>
+  <button class="chip hidden" id="gwChip" title="Game wallet"></button>
+  <button class="chip hidden" id="acctChip"></button>
+</div>
+
+<div class="wrap">
+  <!-- ===== SETUP ===== -->
+  <section id="vSetup" class="hidden">
+    <div class="card" style="max-width:560px;margin:40px auto;text-align:center">
+      <h2 style="font-size:26px">Set up TicTacBase</h2>
+      <p class="muted">This page has no game contract yet. Connect the wallet that should receive all move fees and deploy the contract on Base. It costs only gas (a few cents).</p>
+      <button class="btn" id="btnDeploy">Connect wallet &amp; deploy</button>
+      <div class="stepbox hidden" id="deployStep"></div>
+      <div id="deployResult" class="hidden" style="margin-top:18px">
+        <p>Contract deployed:<br><code id="deployedAddr"></code></p>
+        <p class="muted">Send this address to whoever manages the site, or download the ready file and upload it in place of this one.</p>
+        <button class="btn ghost" id="btnDownload">Download ready index.html</button>
+      </div>
+      <p class="muted" style="margin-top:26px">Already deployed? Paste the contract address:</p>
+      <div class="copy"><input id="existingAddr" placeholder="0x…"><button class="btn ghost small" id="btnUseAddr">Download file</button></div>
+    </div>
+  </section>
+
+  <!-- ===== LANDING ===== -->
+  <section id="vLanding" class="hidden">
+    <div class="hero">
+      <div>
+        <h1>Tic-Tac-Toe on Base.<br>Real stakes. 10 seconds.</h1>
+        <p>Pick your stake with the slider, get matched with another player and play. Every move is on-chain. Winner takes the whole pot.</p>
+        <div class="pills">
+          <div class="pill"><b>$0.10 – $5</b><span>stake per player</span></div>
+          <div class="pill"><b id="lpFee">$0.01</b><span>per move (X or O)</span></div>
+          <div class="pill"><b>10 s</b><span>per move, then the computer moves</span></div>
+        </div>
+        <button class="btn" id="btnConnect">Connect wallet &amp; play</button>
+        <button class="btn ghost" id="btnPracticeL" style="margin-left:8px">Free practice vs 🤖</button>
+        <div id="noWallet" class="hidden">
+          <p class="muted">No wallet found in this browser. Open this page in your wallet app:</p>
+          <a class="btn ghost small" id="lnkMM" target="_blank" rel="noopener">MetaMask</a>
+          <a class="btn ghost small" id="lnkCB" target="_blank" rel="noopener">Coinbase Wallet</a>
+        </div>
+        <ul class="rules">
+          <li>Both players put in the same stake ($0.10 steps, up to $5).</li>
+          <li>Each X or O you place costs a small move fee.</li>
+          <li>Miss your 10 seconds and the computer places a random mark for you.</li>
+          <li>Win = you get both stakes. Draw = both stakes back.</li>
+          <li>No opponent around? Play the computer 🤖 — it matches your stake from the house bank.</li>
+        </ul>
+        <div class="note" id="pubStats"></div>
+      </div>
+      <div class="demo" id="demoBoard"></div>
+    </div>
+  </section>
+
+  <!-- ===== LOBBY ===== -->
+  <section id="vLobby" class="hidden">
+    <div class="grid2 mt">
+      <div class="card">
+        <h2>New game</h2>
+        <div class="stakeShow" id="stakeShow">$1.00</div>
+        <div class="ethEq" id="ethEq">≈ … ETH per player</div>
+        <input type="range" id="stake" min="10" max="500" step="10" value="100">
+        <div class="ticks"><span>$0.10</span><span>$1</span><span>$2</span><span>$3</span><span>$4</span><span>$5</span></div>
+        <div class="quick" id="quick"></div>
+        <button class="btn big" id="btnPlay">Play vs player · $1.00</button>
+        <div class="sub" id="playSub">Joins a player waiting at the same stake, or opens a new game. Winner gets $2.00.</div>
+        <button class="btn big ghost mt" id="btnCpu" style="margin-top:12px">Play vs computer 🤖 · $1.00</button>
+        <div class="sub" id="cpuSub">The computer matches your stake from the house bank and answers instantly.</div>
+        <p class="sub" style="text-align:center"><a href="#" id="btnPractice">Free practice game vs 🤖 (no money)</a></p>
+      </div>
+      <div class="card">
+        <h2>Open games <span class="muted" style="font-size:13px;font-weight:600" id="openCount"></span></h2>
+        <div class="list" id="openList"><div class="empty">Loading…</div></div>
+      </div>
+    </div>
+    <div class="grid2 mt">
+      <div class="card">
+        <h2>Your games</h2>
+        <div class="statrow">
+          <div class="stat"><b id="sW">0</b><span>Wins</span></div>
+          <div class="stat"><b id="sL">0</b><span>Losses</span></div>
+          <div class="stat"><b id="sD">0</b><span>Draws</span></div>
+          <div class="stat"><b id="sWon">$0</b><span>Won</span></div>
+        </div>
+        <div class="list" id="myList"></div>
+      </div>
+      <div class="card">
+        <h2>Game wallet</h2>
+        <div class="wallet"><div><div class="bal" id="gwBal">…</div><div class="muted" style="font-size:12.5px" id="gwAddr"></div></div><div class="sp"></div>
+          <button class="btn ghost small" id="btnTopUp">Top up $0.50</button>
+          <button class="btn ghost small" id="btnSweep">Withdraw to my wallet</button></div>
+        <p class="sub">A small wallet kept in this browser that pays your move fees and gas, so moves happen instantly without wallet pop-ups. It's filled automatically when you start a game. Stakes and winnings always go to your main wallet.</p>
+        <div id="pendingBox" class="hidden stepbox">You have <b id="pendAmt"></b> waiting. <button class="btn small" id="btnClaim">Claim</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WAITING ===== -->
+  <section id="vWait" class="hidden">
+    <div class="card wait">
+      <div class="pulse"><svg width="44" height="44" viewBox="0 0 64 64"><path d="M16 16l14 14M30 16L16 30" stroke="#fff" stroke-width="6" stroke-linecap="round"/><circle cx="42" cy="42" r="9" fill="none" stroke="#ffb020" stroke-width="6"/></svg></div>
+      <h2 style="font-size:24px">Waiting for an opponent…</h2>
+      <p class="muted">Game <b id="wId"></b> · stake <b id="wStake"></b> · winner gets <b id="wPot"></b></p>
+      <p class="muted" style="font-size:13.5px">Stay on this page — the game starts the moment someone joins. Share the link to invite a friend:</p>
+      <div class="copy"><input id="wLink" readonly><button class="btn small" id="btnCopy">Copy</button></div>
+      <button class="btn warn" id="btnCancel">Cancel &amp; refund stake</button>
+    </div>
+  </section>
+
+  <!-- ===== JOIN PROMPT (shared link) ===== -->
+  <section id="vJoin" class="hidden">
+    <div class="card wait">
+      <h2 style="font-size:24px">You're invited to a game</h2>
+      <p class="muted">Game <b id="jId"></b> · stake <b id="jStake"></b> · winner gets <b id="jPot"></b></p>
+      <button class="btn big" id="btnJoinShared">Join for $…</button>
+      <p><a href="#" id="jBack">Back to lobby</a></p>
+    </div>
+  </section>
+
+  <!-- ===== GAME ===== -->
+  <section id="vGame" class="hidden">
+    <div class="game">
+      <div class="side">
+        <div class="player x" id="pX"><div class="mark"></div><div><b id="pXn">X</b><span id="pXa"></span></div></div>
+        <div class="pot"><span>Winner gets</span><b id="potAmt">$0</b><span id="potSub"></span></div>
+      </div>
+      <div>
+        <div class="banner">
+          <div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" stroke="#24335a" stroke-width="7" fill="none"/><circle id="ringArc" cx="32" cy="32" r="27" stroke="#2f6bff" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="0"/></svg><b id="ringNum">10</b></div>
+          <div><div class="turnText" id="turnText">…</div><div class="turnSub" id="turnSub"></div></div>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="gfoot" id="gfoot"></div>
+      </div>
+      <div class="side right">
+        <div class="player o" id="pO"><div class="mark"></div><div><b id="pOn">O</b><span id="pOa"></span></div></div>
+        <button class="btn ghost" id="btnLeave">Back to lobby</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ADMIN ===== -->
+  <section id="vAdmin" class="hidden">
+    <div class="card mt">
+      <h2>Admin panel</h2>
+      <div class="kpis">
+        <div class="kpi"><span>Games</span><b id="aGames">–</b></div>
+        <div class="kpi"><span>Finished</span><b id="aFin">–</b></div>
+        <div class="kpi"><span>Volume staked</span><b id="aVol">–</b></div>
+        <div class="kpi"><span>Move fees earned</span><b id="aFees">–</b></div>
+        <div class="kpi"><span>ETH price used</span><b id="aEth">–</b></div>
+      </div>
+      <div class="frm"><label>Move fee (USD)</label><input type="number" id="aMoveFee" step="0.001" min="0"><button class="btn small" id="aSaveFee">Save</button></div>
+      <div class="frm"><label>Stake min / max / step (USD)</label><input type="number" id="aMin" step="0.01" min="0.01"><input type="number" id="aMax" step="0.01"><input type="number" id="aStep" step="0.01"><button class="btn small" id="aSaveStake">Save</button></div>
+      <div class="frm"><label>Seconds per move / extra for 1st move</label><input type="number" id="aTimeout" min="5" max="600"><input type="number" id="aGrace" min="0" max="600"><button class="btn small" id="aSaveTime">Save</button></div>
+      <div class="frm"><label>Backup ETH price (USD), always use it</label><input type="number" id="aFallback" min="1"><input type="checkbox" id="aFixed"><button class="btn small" id="aSavePrice">Save</button></div>
+      <div class="frm"><label>New games</label><button class="btn small" id="aPause"></button></div>
+      <h2 class="mt">Computer opponent (house bank)</h2>
+      <div class="kpis"><div class="kpi"><span>House bank</span><b id="aBank">–</b></div><div class="kpi"><span>Max stake vs computer</span><b id="aBankMax">–</b></div></div>
+      <div class="frm"><label>Fund house bank (USD)</label><input type="number" id="aFundUsd" value="20" min="1" step="1"><button class="btn small" id="aFund">Send</button></div>
+      <div class="frm"><label>Withdraw from house bank (USD)</label><input type="number" id="aWdUsd" value="10" min="0" step="1"><button class="btn small" id="aWd">Withdraw</button></div>
+      <div class="frm"><label>Computer enabled / mistake chance %</label><input type="checkbox" id="aCpuOn"><input type="number" id="aMistake" min="0" max="100"><button class="btn small" id="aSaveCpu">Save</button></div>
+      <p class="sub">The house bank matches player stakes in games vs the computer. Player wins → paid from the bank. Computer wins → the player's stake goes into the bank. Mistake chance = how often the computer misses a block (higher = easier to beat).</p>
+      <div class="frm"><label>Contract</label><a id="aLink" target="_blank" rel="noopener"></a></div>
+      <div class="frm"><label>Fees go to</label><code id="aOwner"></code></div>
+      <p><a href="#" id="aBack">← Back to lobby</a></p>
+    </div>
+  </section>
+</div>
+<div id="toasts"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script>
+/* ================= CONFIG ================= */
+const CONTRACT_ADDRESS = "__CONTRACT_ADDRESS__";
+const CHAIN_ID = 8453; // Base mainnet
+const RPCS = ["https://mainnet.base.org","https://base-rpc.publicnode.com","https://base.llamarpc.com"];
+const EXPLORER = "https://basescan.org";
+const ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"BadCell","type":"error"},{"inputs":[],"name":"BadStake","type":"error"},{"inputs":[],"name":"ComputerOff","type":"error"},{"inputs":[{"internalType":"uint256","name":"required","type":"uint256"},{"internalType":"uint256","name":"sent","type":"uint256"}],"name":"FeeTooLow","type":"error"},{"inputs":[],"name":"HouseTooSmall","type":"error"},{"inputs":[],"name":"NotCreator","type":"error"},{"inputs":[],"name":"NotOpen","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"NotPlaying","type":"error"},{"inputs":[],"name":"NotYet","type":"error"},{"inputs":[],"name":"NotYourTurn","type":"error"},{"inputs":[],"name":"NothingToWithdraw","type":"error"},{"inputs":[],"name":"OwnGame","type":"error"},{"inputs":[],"name":"Paused","type":"error"},{"inputs":[],"name":"Reentrancy","type":"error"},{"inputs":[],"name":"TooLate","type":"error"},{"inputs":[],"name":"TransferFailed","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"}],"name":"GameCancelled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"playerX","type":"address"},{"indexed":false,"internalType":"uint32","name":"stakeCents","type":"uint32"},{"indexed":false,"internalType":"uint256","name":"stakeWei","type":"uint256"}],"name":"GameCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"status","type":"uint8"},{"indexed":false,"internalType":"address","name":"winner","type":"address"},{"indexed":false,"internalType":"uint256","name":"payout","type":"uint256"}],"name":"GameFinished","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":true,"internalType":"address","name":"playerO","type":"address"},{"indexed":false,"internalType":"uint8","name":"firstTurn","type":"uint8"}],"name":"GameJoined","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bank","type":"uint256"}],"name":"HouseFunded","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bank","type":"uint256"}],"name":"HouseWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"id","type":"uint256"},{"indexed":false,"internalType":"uint8","name":"side","type":"uint8"},{"indexed":false,"internalType":"uint8","name":"cell","type":"uint8"},{"indexed":false,"internalType":"bool","name":"forced","type":"bool"}],"name":"Moved","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnerChanged","type":"event"},{"inputs":[],"name":"CANCELLED","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DRAW","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"OPEN","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"O_WON","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PLAYING","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"X_WON","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"cancelGame","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"computerEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"computerInfo","outputs":[{"internalType":"bool","name":"enabled","type":"bool"},{"internalType":"uint8","name":"mistakePct","type":"uint8"},{"internalType":"uint256","name":"bankWei","type":"uint256"},{"internalType":"uint256","name":"maxStakeCentsVsComputer","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"computerMistakePct","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"address","name":"session","type":"address"}],"name":"createGame","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"escrowWei","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fallbackWeiPerUsd","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"finishedGames","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"firstMoveGrace","outputs":[{"internalType":"uint64","name":"","type":"uint64"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"forceMove","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"fundHouse","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"gameCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"getGame","outputs":[{"components":[{"internalType":"address","name":"playerX","type":"address"},{"internalType":"address","name":"playerO","type":"address"},{"internalType":"address","name":"sessionX","type":"address"},{"internalType":"address","name":"sessionO","type":"address"},{"internalType":"uint256","name":"stakeWei","type":"uint256"},{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"uint8","name":"status","type":"uint8"},{"internalType":"uint8","name":"turn","type":"uint8"},{"internalType":"uint8","name":"moves","type":"uint8"},{"internalType":"uint8","name":"winLine","type":"uint8"},{"internalType":"uint32","name":"board","type":"uint32"},{"internalType":"uint16","name":"forcedMask","type":"uint16"},{"internalType":"uint64","name":"created","type":"uint64"},{"internalType":"uint64","name":"lastMove","type":"uint64"},{"internalType":"uint64","name":"deadline","type":"uint64"},{"internalType":"bool","name":"vsComputer","type":"bool"}],"internalType":"struct TicTacBase.Game","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"name":"getGameNow","outputs":[{"components":[{"internalType":"address","name":"playerX","type":"address"},{"internalType":"address","name":"playerO","type":"address"},{"internalType":"address","name":"sessionX","type":"address"},{"internalType":"address","name":"sessionO","type":"address"},{"internalType":"uint256","name":"stakeWei","type":"uint256"},{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"uint8","name":"status","type":"uint8"},{"internalType":"uint8","name":"turn","type":"uint8"},{"internalType":"uint8","name":"moves","type":"uint8"},{"internalType":"uint8","name":"winLine","type":"uint8"},{"internalType":"uint32","name":"board","type":"uint32"},{"internalType":"uint16","name":"forcedMask","type":"uint16"},{"internalType":"uint64","name":"created","type":"uint64"},{"internalType":"uint64","name":"lastMove","type":"uint64"},{"internalType":"uint64","name":"deadline","type":"uint64"},{"internalType":"bool","name":"vsComputer","type":"bool"}],"internalType":"struct TicTacBase.Game","name":"g","type":"tuple"},{"internalType":"uint256","name":"nowTs","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256[]","name":"ids","type":"uint256[]"}],"name":"getGames","outputs":[{"components":[{"internalType":"address","name":"playerX","type":"address"},{"internalType":"address","name":"playerO","type":"address"},{"internalType":"address","name":"sessionX","type":"address"},{"internalType":"address","name":"sessionO","type":"address"},{"internalType":"uint256","name":"stakeWei","type":"uint256"},{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"uint8","name":"status","type":"uint8"},{"internalType":"uint8","name":"turn","type":"uint8"},{"internalType":"uint8","name":"moves","type":"uint8"},{"internalType":"uint8","name":"winLine","type":"uint8"},{"internalType":"uint32","name":"board","type":"uint32"},{"internalType":"uint16","name":"forcedMask","type":"uint16"},{"internalType":"uint64","name":"created","type":"uint64"},{"internalType":"uint64","name":"lastMove","type":"uint64"},{"internalType":"uint64","name":"deadline","type":"uint64"},{"internalType":"bool","name":"vsComputer","type":"bool"}],"internalType":"struct TicTacBase.Game[]","name":"list","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"offset","type":"uint256"},{"internalType":"uint256","name":"limit","type":"uint256"}],"name":"getOpenGames","outputs":[{"internalType":"uint256[]","name":"ids","type":"uint256[]"},{"components":[{"internalType":"address","name":"playerX","type":"address"},{"internalType":"address","name":"playerO","type":"address"},{"internalType":"address","name":"sessionX","type":"address"},{"internalType":"address","name":"sessionO","type":"address"},{"internalType":"uint256","name":"stakeWei","type":"uint256"},{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"uint8","name":"status","type":"uint8"},{"internalType":"uint8","name":"turn","type":"uint8"},{"internalType":"uint8","name":"moves","type":"uint8"},{"internalType":"uint8","name":"winLine","type":"uint8"},{"internalType":"uint32","name":"board","type":"uint32"},{"internalType":"uint16","name":"forcedMask","type":"uint16"},{"internalType":"uint64","name":"created","type":"uint64"},{"internalType":"uint64","name":"lastMove","type":"uint64"},{"internalType":"uint64","name":"deadline","type":"uint64"},{"internalType":"bool","name":"vsComputer","type":"bool"}],"internalType":"struct TicTacBase.Game[]","name":"list","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"player","type":"address"},{"internalType":"uint256","name":"limit","type":"uint256"}],"name":"getPlayerGames","outputs":[{"internalType":"uint256[]","name":"ids","type":"uint256[]"},{"components":[{"internalType":"address","name":"playerX","type":"address"},{"internalType":"address","name":"playerO","type":"address"},{"internalType":"address","name":"sessionX","type":"address"},{"internalType":"address","name":"sessionO","type":"address"},{"internalType":"uint256","name":"stakeWei","type":"uint256"},{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"uint8","name":"status","type":"uint8"},{"internalType":"uint8","name":"turn","type":"uint8"},{"internalType":"uint8","name":"moves","type":"uint8"},{"internalType":"uint8","name":"winLine","type":"uint8"},{"internalType":"uint32","name":"board","type":"uint32"},{"internalType":"uint16","name":"forcedMask","type":"uint16"},{"internalType":"uint64","name":"created","type":"uint64"},{"internalType":"uint64","name":"lastMove","type":"uint64"},{"internalType":"uint64","name":"deadline","type":"uint64"},{"internalType":"bool","name":"vsComputer","type":"bool"}],"internalType":"struct TicTacBase.Game[]","name":"list","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"houseBank","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"info","outputs":[{"internalType":"uint256","name":"games_","type":"uint256"},{"internalType":"uint256","name":"finished_","type":"uint256"},{"internalType":"uint256","name":"volumeWei_","type":"uint256"},{"internalType":"uint256","name":"feesMicroUsd_","type":"uint256"},{"internalType":"uint256","name":"weiPerUsd_","type":"uint256"},{"internalType":"uint256","name":"moveFeeWei_","type":"uint256"},{"internalType":"uint64","name":"timeout_","type":"uint64"},{"internalType":"uint32","name":"minStake_","type":"uint32"},{"internalType":"uint32","name":"maxStake_","type":"uint32"},{"internalType":"uint32","name":"step_","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"session","type":"address"}],"name":"joinGame","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"maxPriceAge","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxStakeCents","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minStakeCents","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"uint8","name":"cell","type":"uint8"}],"name":"move","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"moveFeeMicroUsd","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"moveFeeWei","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"moveTimeout","outputs":[{"internalType":"uint64","name":"","type":"uint64"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"openGamesCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"pendingWithdrawals","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32","name":"stakeCents","type":"uint32"},{"internalType":"address","name":"session","type":"address"}],"name":"playComputer","outputs":[{"internalType":"uint256","name":"id","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"priceFeed","outputs":[{"internalType":"contract AggregatorV3Interface","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"microUsd","type":"uint256"}],"name":"quoteMicroUsd","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"enabled","type":"bool"},{"internalType":"uint8","name":"mistakePct","type":"uint8"}],"name":"setComputer","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"bool","name":"_useFixedPrice","type":"bool"}],"name":"setFallbackWeiPerUsd","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"microUsd","type":"uint256"}],"name":"setMoveFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"value","type":"bool"}],"name":"setPaused","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"feed","type":"address"},{"internalType":"uint256","name":"_maxPriceAge","type":"uint256"}],"name":"setPriceFeed","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint32","name":"minCents","type":"uint32"},{"internalType":"uint32","name":"maxCents","type":"uint32"},{"internalType":"uint32","name":"stepCents","type":"uint32"}],"name":"setStakeLimits","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint64","name":"_moveTimeout","type":"uint64"},{"internalType":"uint64","name":"_firstMoveGrace","type":"uint64"}],"name":"setTimeouts","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"stakeStepCents","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32","name":"stakeCents","type":"uint32"}],"name":"stakeWeiFor","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"stats","outputs":[{"internalType":"uint32","name":"wins","type":"uint32"},{"internalType":"uint32","name":"losses","type":"uint32"},{"internalType":"uint32","name":"draws","type":"uint32"},{"internalType":"uint256","name":"wonWei","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"sweepExtra","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"totalFeesMicroUsd","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalPendingWei","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalVolumeWei","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"useFixedPrice","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint32","name":"stakeCents","type":"uint32"}],"name":"validStake","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"weiPerUsd","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawHouse","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}];
+const BYTECODE = "0x6080604052612710600255600380546001600160e01b031916740a000000000000000a0000000a000001f40000000a17905566012f2a36ecd5556004556154606005556006805463ffff00001916631901000017905534801561006157600080fd5b50600080546001600160a01b03199081163317909155600180549091167371041dddad3595f9ced3dccfbe3d1f4b0a16bb701790556145b4806100a56000396000f3fe60806040526004361061039b5760003560e01c80637c863ed6116101dc578063c6fe721211610102578063e8f44793116100a0578063f3f437031161006f578063f3f4370314610b15578063f4273d5914610b42578063f810962114610b58578063fdb894ac14610b7557600080fd5b8063e8f4479314610ab7578063ead00e0214610acc578063f2fde38b14610adf578063f33f690214610aff57600080fd5b8063d4b84a7b116100dc578063d4b84a7b14610a49578063de92285f14610a63578063e584ecdb14610a83578063e657feb014610aa457600080fd5b8063c6fe7212146109fe578063ce35923d14610a1e578063d1b9c43014610a3457600080fd5b8063ae71dcdf1161017a578063bd14b49911610149578063bd14b49914610988578063be03f3fd1461099e578063c14795cf146109be578063c39f2e6a146109de57600080fd5b8063ae71dcdf14610929578063af11d2f01461093e578063b815d9911461095e578063b81872621461097357600080fd5b80638bcdcbf3116101b65780638bcdcbf3146108425780638da5cb5b146108c7578063929febb8146108e7578063a2f77bcc146108fc57600080fd5b80637c863ed6146107f657806382df16391461080c57806387d73b2a1461082257600080fd5b80635b7b0f90116102c157806369958ab91161025f5780636ee1a4421161022e5780636ee1a44214610775578063735fcda51461078857806373faf46d1461079e578063741bef1a146107be57600080fd5b806369958ab9146106fc5780636afbb01b1461071c5780636cc5f3ad146107245780636d8d08191461075157600080fd5b8063619d36ef1161029b578063619d36ef1461069257806363349e9e146106a757806364616253146106bc57806368ec51bc146106dc57600080fd5b80635b7b0f901461060a5780635c6a37961461062a5780635c975abb1461066357600080fd5b80632d3e0851116103395780633ef15c7c116103085780633ef15c7c1461057f5780634d1975b4146105ad5780634de77808146105c357806354715788146105ea57600080fd5b80632d3e0851146104a4578063370158ea146104b75780633ccfd60b1461052b5780633e76e5061461054057600080fd5b80631d7ad801116103755780631d7ad80114610408578063232184111461041d57806323a9ca951461043d578063288b45951461047657600080fd5b806311363495146103a75780631584410a146103d057806316c38b3c146103e657600080fd5b366103a257005b600080fd5b3480156103b357600080fd5b506103bd60135481565b6040519081526020015b60405180910390f35b3480156103dc57600080fd5b506103bd60055481565b3480156103f257600080fd5b50610406610401366004613e25565b610b9c565b005b34801561041457600080fd5b50610406610be1565b34801561042957600080fd5b50610406610438366004613e47565b610d09565b34801561044957600080fd5b50610452610e4a565b60408051941515855260ff90931660208501529183015260608201526080016103c7565b34801561048257600080fd5b50610496610491366004613e77565b610ead565b6040516103c7929190614015565b6104066104b236600461407e565b61111e565b3480156104c357600080fd5b506104cc6112dc565b604080519a8b5260208b0199909952978901969096526060880194909452608087019290925260a08601526001600160401b031660c085015263ffffffff90811660e085015290811661010084015216610120820152610140016103c7565b34801561053757600080fd5b50610406611357565b34801561054c57600080fd5b5060035461056790600160a01b90046001600160401b031681565b6040516001600160401b0390911681526020016103c7565b34801561058b57600080fd5b5061059f61059a366004613e47565b611424565b6040516103c79291906140aa565b3480156105b957600080fd5b506103bd60085481565b3480156105cf57600080fd5b506105d8600281565b60405160ff90911681526020016103c7565b3480156105f657600080fd5b506104066106053660046140de565b611540565b34801561061657600080fd5b506103bd610625366004613e47565b611612565b34801561063657600080fd5b5060035461064e90600160201b900463ffffffff1681565b60405163ffffffff90911681526020016103c7565b34801561066f57600080fd5b5060065461068290610100900460ff1681565b60405190151581526020016103c7565b34801561069e57600080fd5b506105d8600581565b3480156106b357600080fd5b50600a546103bd565b3480156106c857600080fd5b506104066106d7366004613e47565b61163b565b3480156106e857600080fd5b506103bd6106f736600461411c565b6117a8565b34801561070857600080fd5b50610406610717366004613e47565b6117bf565b61040661190b565b34801561073057600080fd5b5061074461073f366004614137565b611968565b6040516103c791906141ab565b34801561075d57600080fd5b5060035461064e90600160401b900463ffffffff1681565b6103bd6107833660046141be565b611b27565b34801561079457600080fd5b506103bd60115481565b3480156107aa57600080fd5b506104066107b9366004613e77565b611d6b565b3480156107ca57600080fd5b506001546107de906001600160a01b031681565b6040516001600160a01b0390911681526020016103c7565b34801561080257600080fd5b506103bd60045481565b34801561081857600080fd5b506103bd60075481565b34801561082e57600080fd5b5061040661083d366004613e47565b611dbc565b34801561084e57600080fd5b5061089561085d3660046141e8565b600d602052600090815260409020805460019091015463ffffffff80831692600160201b8104821692600160401b9091049091169084565b6040516103c7949392919063ffffffff9485168152928416602084015292166040820152606081019190915260800190565b3480156108d357600080fd5b506000546107de906001600160a01b031681565b3480156108f357600080fd5b506105d8600381565b34801561090857600080fd5b5061091c610917366004613e47565b611dec565b6040516103c79190614203565b34801561093557600080fd5b506105d8600681565b34801561094a57600080fd5b50610406610959366004614212565b611f06565b34801561096a57600080fd5b506105d8600481565b34801561097f57600080fd5b506103bd611f83565b34801561099457600080fd5b506103bd60125481565b3480156109aa57600080fd5b506104066109b9366004614235565b612085565b3480156109ca57600080fd5b506006546106829062010000900460ff1681565b3480156109ea57600080fd5b506106826109f936600461411c565b612109565b348015610a0a57600080fd5b50610406610a1936600461425f565b612169565b348015610a2a57600080fd5b506103bd600f5481565b348015610a4057600080fd5b506105d8600181565b348015610a5557600080fd5b506006546106829060ff1681565b348015610a6f57600080fd5b50610496610a7e3660046142a2565b61222a565b348015610a8f57600080fd5b506006546105d8906301000000900460ff1681565b6103bd610ab23660046141be565b612505565b348015610ac357600080fd5b506103bd6129dc565b610406610ada3660046142c4565b6129ee565b348015610aeb57600080fd5b50610406610afa3660046141e8565b612ca7565b348015610b0b57600080fd5b506103bd60025481565b348015610b2157600080fd5b506103bd610b303660046141e8565b600e6020526000908152604090205481565b348015610b4e57600080fd5b506103bd60105481565b348015610b6457600080fd5b5060035461064e9063ffffffff1681565b348015610b8157600080fd5b5060035461056790600160601b90046001600160401b031681565b6000546001600160a01b03163314610bc7576040516330cd747160e01b815260040160405180910390fd5b600680549115156101000261ff0019909216919091179055565b6000546001600160a01b03163314610c0c576040516330cd747160e01b815260040160405180910390fd5b60145460ff1615610c305760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055600754601054600f5460009291610c53916142fd565b610c5d91906142fd565b905047818111610c8057604051630686827b60e51b815260040160405180910390fd5b600080546001600160a01b0316610c978484614310565b604051600081818185875af1925050503d8060008114610cd3576040519150601f19603f3d011682016040523d82523d6000602084013e610cd8565b606091505b5050905080610cfa576040516312171d8360e31b815260040160405180910390fd5b50506014805460ff1916905550565b6000546001600160a01b03163314610d34576040516330cd747160e01b815260040160405180910390fd5b60145460ff1615610d585760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055600754811115610d7457506007545b8060076000828254610d869190614310565b90915550506007546040805183815260208101929092527fbcc96fd1751b2872c7c603041556525c8665e2831b7fd9df7521c25091f5ecd0910160405180910390a1600080546040516001600160a01b039091169083908381818185875af1925050503d8060008114610e15576040519150601f19603f3d011682016040523d82523d6000602084013e610e1a565b606091505b5050905080610e3c576040516312171d8360e31b815260040160405180910390fd5b50506014805460ff19169055565b6000806000806000610e5a611f83565b905060008115610e8357816007546064610e749190614323565b610e7e9190614350565b610e86565b60005b60065460075460ff62010000830481169a6301000000909304169850965090945092505050565b6001600160a01b0382166000908152600c6020526040812080546060928392918511610ed95784610edc565b81545b9050806001600160401b03811115610ef657610ef6614364565b604051908082528060200260200182016040528015610f1f578160200160208202803683370190505b509350806001600160401b03811115610f3a57610f3a614364565b604051908082528060200260200182016040528015610f7357816020015b610f60613d8c565b815260200190600190039081610f585790505b50925060005b81811015611114576000838260018680549050610f969190614310565b610fa09190614310565b81548110610fb057610fb061437a565b9060005260206000200154905080868381518110610fd057610fd061437a565b60209081029190910181019190915260008281526009825260409081902081516102008101835281546001600160a01b039081168252600183015481169482019490945260028201548416928101929092526003810154909216606082015260048201546080820152600582015463ffffffff80821660a084015260ff600160201b8304811660c0850152600160281b8304811660e0850152600160301b83048116610100850152600160381b83048116610120850152600160401b80840490921661014085015261ffff600160601b8404166101608501526001600160401b03600160701b84048116610180860152600160b01b90930483166101a08501526006909401549182166101c0840152900490911615156101e082015285518690849081106111005761110061437a565b602090810291909101015250600101610f79565b5050509250929050565b60145460ff16156111425760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff1916600117905560008281526009602052604090206005810154600160201b900460ff1660021461118c5760405163126ab15560e01b815260040160405180910390fd5b6005810154600160281b900460ff166111a58233612d6c565b1660ff166000036111c957604051631cc191eb60e31b815260040160405180910390fd5b60068101546001600160401b03164211156111f75760405163ecdd1c2960e01b815260040160405180910390fd5b60088260ff1611806112265750600581015461122090600160401b900463ffffffff1683612e0b565b60ff1615155b156112445760405163608eeee960e01b815260040160405180910390fd5b600061124e6129dc565b90508034101561127f576040516378279ed960e11b8152600481018290523460248201526044015b60405180910390fd5b6002546011600082825461129391906142fd565b909155506112a690508483856000612e2f565b6112b08483613060565b34156112cc576000546112cc906001600160a01b0316346130b6565b50506014805460ff191690555050565b6000806000806000806000806000806008546013546012546011546112ff611f83565b6113076129dc565b600354959f50939d50919b509950975095506001600160401b03600160601b820416945063ffffffff8082169450600160201b820481169350600160401b90910416905090919293949596979899565b60145460ff161561137b5760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055336000908152600e6020526040812054908190036113b957604051630686827b60e51b815260040160405180910390fd5b336000908152600e60205260408120819055601080548392906113dd908490614310565b9091555050604051600090339083908381818185875af1925050503d8060008114610e15576040519150601f19603f3d011682016040523d82523d6000602084013e610e1a565b61142c613d8c565b5060009081526009602090815260409182902082516102008101845281546001600160a01b039081168252600183015481169382019390935260028201548316938101939093526003810154909116606083015260048101546080830152600581015463ffffffff80821660a085015260ff600160201b8304811660c0860152600160281b8304811660e0860152600160301b83048116610100860152600160381b83048116610120860152600160401b80840490921661014086015261ffff600160601b8404166101608601526001600160401b03600160701b84048116610180870152600160b01b90930483166101a08601526006909301549182166101c085015290041615156101e0820152904290565b6000546001600160a01b0316331461156b576040516330cd747160e01b815260040160405180910390fd5b6005826001600160401b0316101580156115905750610258826001600160401b031611155b80156115a75750610258816001600160401b031611155b6115c35760405162461bcd60e51b815260040161127690614390565b600380546fffffffffffffffffffffffffffffffff60601b1916600160601b6001600160401b039485160267ffffffffffffffff60a01b191617600160a01b9290931691909102919091179055565b6000620f424082611621611f83565b61162b9190614323565b6116359190614350565b92915050565b60145460ff161561165f5760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff1916600117905560008181526009602052604090206005810154600160201b900460ff166002146116a95760405163126ab15560e01b815260040160405180910390fd5b60068101546001600160401b031642116116d65760405163069fbbbb60e11b815260040160405180910390fd5b60058101546000906116f390600160301b900460ff1660096143ad565b600583015460ff91821692506000918391611717918791600160301b90041661316e565b61172191906143c6565b90506000805b60098160ff16101561177f57600585015461174f90600160401b900463ffffffff1682612e0b565b60ff1660000361177757826000036117695780915061177f565b82611773816143da565b9350505b600101611727565b5061178d8585836001612e2f565b6117978585613060565b50506014805460ff19169055505050565b600061163561062563ffffffff8416612710614323565b60145460ff16156117e35760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001908117909155600082815260096020526040902060058101549091600160201b90910460ff161461183157604051631bb5f5b360e31b815260040160405180910390fd5b80546001600160a01b0316331480159061186d575060028101546001600160a01b0316158061186d575060028101546001600160a01b03163314155b1561188b576040516393687c0b60e01b815260040160405180910390fd5b60058101805464ff0000000019166406000000001790556118ab826131c3565b8060040154600f60008282546118c19190614310565b909155505060405182907f681705fdbd93dba3b679fd712577e9a86d57c5551c520f8c74857deb57f9623f90600090a280546004820154610e3c916001600160a01b0316906130b6565b346007600082825461191d91906142fd565b909155505060075460405133917fafce44b30dc3f6922ee362235ed9ee210d7869fdfe3de3831a8213679163c1579161195e91348252602082015260400190565b60405180910390a2565b6060816001600160401b0381111561198257611982614364565b6040519080825280602002602001820160405280156119bb57816020015b6119a8613d8c565b8152602001906001900390816119a05790505b50905060005b82811015611b2057600960008585848181106119df576119df61437a565b6020908102929092013583525081810192909252604090810160002081516102008101835281546001600160a01b039081168252600183015481169482019490945260028201548416928101929092526003810154909216606082015260048201546080820152600582015463ffffffff80821660a084015260ff600160201b8304811660c0850152600160281b8304811660e0850152600160301b83048116610100850152600160381b83048116610120850152600160401b80840490921661014085015261ffff600160601b8404166101608501526001600160401b03600160701b84048116610180860152600160b01b90930483166101a08501526006909401549182166101c0840152900490911615156101e08201528251839083908110611b0d57611b0d61437a565b60209081029190910101526001016119c1565b5092915050565b60145460009060ff1615611b4e5760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055600654610100900460ff1615611b84576040516313d0ff5960e31b815260040160405180910390fd5b611b8d83612109565b611baa57604051631bf15b6f60e01b815260040160405180910390fd5b6000611bb5846117a8565b905080341015611be1576040516378279ed960e11b815260048101829052346024820152604401611276565b600860008154611bf0906143f1565b918290555060008181526009602090815260408083208054336001600160a01b0319918216811783556002830180549092166001600160a01b038b16179091556004820187905560058201805467ff00000000000000600160201b63ffffffff8e1664ffffffffff19909316929092179190911775ffffffffffffffff000000000000ff000000000000001916600160701b426001600160401b03160217179055600a8054600181810183557fc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a89091018890559054600b865284872055908552600c845291842080549283018155845291832001839055600f80549395509092849290611cfe9084906142fd565b90915550506040805163ffffffff8716815260208101849052339185917fe715979bb28c8c8fd4677ad0d50993f0b7aa38509e3cf01025b0f367b1993690910160405180910390a3611d59611d538334614310565b8561328c565b50506014805460ff1916905592915050565b6000546001600160a01b03163314611d96576040516330cd747160e01b815260040160405180910390fd5b600180546001600160a01b0319166001600160a01b039390931692909217909155600555565b6000546001600160a01b03163314611de7576040516330cd747160e01b815260040160405180910390fd5b600255565b611df4613d8c565b5060009081526009602090815260409182902082516102008101845281546001600160a01b039081168252600183015481169382019390935260028201548316938101939093526003810154909116606083015260048101546080830152600581015463ffffffff80821660a085015260ff600160201b8304811660c0860152600160281b8304811660e0860152600160301b83048116610100860152600160381b83048116610120860152600160401b80840490921661014086015261ffff600160601b8404166101608601526001600160401b03600160701b84048116610180870152600160b01b90930483166101a08601526006909301549182166101c085015290041615156101e082015290565b6000546001600160a01b03163314611f31576040516330cd747160e01b815260040160405180910390fd5b60008211611f6a5760405162461bcd60e51b8152600401611276906020808252600490820152637a65726f60e01b604082015260600190565b6004919091556006805460ff1916911515919091179055565b60065460009060ff1680611fa157506001546001600160a01b03163b155b15611fad575060045490565b600160009054906101000a90046001600160a01b03166001600160a01b031663feaf968c6040518163ffffffff1660e01b815260040160a060405180830381865afa92505050801561201c575060408051601f3d908101601f1916820190925261201991810190614424565b60015b612027575060045490565b600084131580612035575081155b8061203f57504282115b8061205457506005546120528342614310565b115b15612066576004549550505050505090565b61207b846a52b7d2dcc80cd2e4000000614350565b9550505050505090565b6000546001600160a01b031633146120b0576040516330cd747160e01b815260040160405180910390fd5b60648160ff1611156120d45760405162461bcd60e51b815260040161127690614390565b6006805463ffff00001916620100009315159390930263ff000000191692909217630100000060ff9290921691909102179055565b60035460009063ffffffff9081169083161080159061213b575060035463ffffffff600160201b909104811690831611155b8015611635575060035461215c90600160401b900463ffffffff1683614474565b63ffffffff161592915050565b6000546001600160a01b03163314612194576040516330cd747160e01b815260040160405180910390fd5b60008363ffffffff161180156121b657508163ffffffff168363ffffffff1611155b80156121c8575060008163ffffffff16115b6121e45760405162461bcd60e51b815260040161127690614390565b6003805463ffffffff94851667ffffffffffffffff1990911617600160201b938516939093029290921763ffffffff60401b1916600160401b9190931602919091179055565b600a54606090819080851061227d5760408051600080825260208201818152828401909352909190612272565b61225f613d8c565b8152602001906001900390816122575790505b5092509250506124fe565b60008161228a86886142fd565b1161229e5761229985876142fd565b6122a0565b815b90506122ac8682614310565b6001600160401b038111156122c3576122c3614364565b6040519080825280602002602001820160405280156122ec578160200160208202803683370190505b5093506122f98682614310565b6001600160401b0381111561231057612310614364565b60405190808252806020026020018201604052801561234957816020015b612336613d8c565b81526020019060019003908161232e5790505b509250855b8181101561111457600a81815481106123695761236961437a565b90600052602060002001548588836123819190614310565b815181106123915761239161437a565b60200260200101818152505060096000600a83815481106123b4576123b461437a565b60009182526020808320909101548352828101939093526040918201902081516102008101835281546001600160a01b039081168252600183015481169482019490945260028201548416928101929092526003810154909216606082015260048201546080820152600582015463ffffffff80821660a084015260ff600160201b8304811660c0850152600160281b8304811660e0850152600160301b83048116610100850152600160381b83048116610120850152600160401b80840490921661014085015261ffff600160601b8404166101608501526001600160401b03600160701b84048116610180860152600160b01b90930483166101a08501526006909401549182166101c0840152900490911615156101e0820152846124db8984614310565b815181106124eb576124eb61437a565b602090810291909101015260010161234e565b9250929050565b60145460009060ff161561252c5760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055600654610100900460ff1615612562576040516313d0ff5960e31b815260040160405180910390fd5b60065462010000900460ff1661258b5760405163d817d7f560e01b815260040160405180910390fd5b61259483612109565b6125b157604051631bf15b6f60e01b815260040160405180910390fd5b60006125bc846117a8565b9050803410156125e8576040516378279ed960e11b815260048101829052346024820152604401611276565b80600754101561260b5760405163388766fd60e01b815260040160405180910390fd5b806007600082825461261d9190614310565b9091555061262e9050816002614323565b600f600082825461263f91906142fd565b909155506126509050816002614323565b6012600082825461266191906142fd565b909155505060088054600090612676906143f1565b91905081905591506000600960008481526020019081526020016000209050338160000160006101000a8154816001600160a01b0302191690836001600160a01b03160217905550308160010160006101000a8154816001600160a01b0302191690836001600160a01b03160217905550838160020160006101000a8154816001600160a01b0302191690836001600160a01b03160217905550818160040181905550848160050160006101000a81548163ffffffff021916908363ffffffff16021790555060028160050160046101000a81548160ff021916908360ff16021790555060ff8160050160076101000a81548160ff021916908360ff16021790555060018160060160086101000a81548160ff0219169083151502179055504281600501600e6101000a8154816001600160401b0302191690836001600160401b03160217905550600c6000336001600160a01b03166001600160a01b031681526020019081526020016000208390806001815401808255809150506001900390600052602060002001600090919091909150556000600261281985600761316e565b61282391906143c6565b61282e906001614497565b60058301805465ff00000000001916600160281b60ff8416021790556040805163ffffffff8916815260208101869052919250339186917fe715979bb28c8c8fd4677ad0d50993f0b7aa38509e3cf01025b0f367b1993690910160405180910390a360405160ff82168152309085907f9543429ff4d0366bda7e6f7907ab4d8c123ad250f9a8d6ecffabe880ab084e049060200160405180910390a38060ff16600203612939576128df84836132b7565b6003546001600160401b03600160a01b820481169161290791600160601b90910416426144b0565b61291191906144b0565b60068301805467ffffffffffffffff19166001600160401b03929092169190911790556129b6565b6005820180546001600160401b0342818116600160b01b0267ffffffffffffffff60b01b1990931692909217909255600354600160a01b810483169261298892600160601b90920416906144b0565b61299291906144b0565b60068301805467ffffffffffffffff19166001600160401b03929092169190911790555b6129c96129c38434614310565b8661328c565b50506014805460ff191690555092915050565b60006129e9600254611612565b905090565b60145460ff1615612a125760405163558a1e0360e11b815260040160405180910390fd5b6014805460ff19166001179055600654610100900460ff1615612a48576040516313d0ff5960e31b815260040160405180910390fd5b60008281526009602052604090206005810154600160201b900460ff16600114612a8557604051631bb5f5b360e31b815260040160405180910390fd5b80546001600160a01b03163303612aaf57604051630986cbd960e21b815260040160405180910390fd5b600481015434811115612ade576040516378279ed960e11b815260048101829052346024820152604401611276565b600182018054336001600160a01b0319918216179091556003830180549091166001600160a01b03851617905560058201805464ff0000000019166402000000001790556002612b2f85600761316e565b612b3991906143c6565b612b44906001614497565b6005830180546001600160401b0342818116600160b01b0267ffffffffffffffff60b01b1960ff96909616600160281b029590951665ff000000000067ffffffffffffffff60b01b01199093169290921793909317909155600354600160a01b8104831692612bbc92600160601b90920416906144b0565b612bc691906144b0565b60068301805467ffffffffffffffff19166001600160401b0392909216919091179055612bf2846131c3565b336000908152600c602090815260408220805460018101825590835290822001859055600f8054839290612c279084906142fd565b90915550612c389050816002614323565b60126000828254612c4991906142fd565b90915550506005820154604051600160281b90910460ff168152339085907f9543429ff4d0366bda7e6f7907ab4d8c123ad250f9a8d6ecffabe880ab084e049060200160405180910390a36112cc612ca18234614310565b8461328c565b6000546001600160a01b03163314612cd2576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b038116612d115760405162461bcd60e51b8152600401611276906020808252600490820152637a65726f60e01b604082015260600190565b600080546040516001600160a01b03808516939216917fb532073b38c83145e3e5135377a08bf9aab55bc0fd7c1179cd4fb995d2a5159c91a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b81546000906001600160a01b0383811691161480612db0575060028301546001600160a01b031615801590612db0575060028301546001600160a01b038381169116145b15612db9576001175b60018301546001600160a01b0383811691161480612dfd575060038301546001600160a01b031615801590612dfd575060038301546001600160a01b038381169116145b156116355760021792915050565b6000612e188260026144d0565b60ff168363ffffffff16901c600316905092915050565b6005830154600160281b900460ff16612e498360026144d0565b60058501805460ff8481169381169390931b63ffffffff908116600160401b808404909216170263ffffffff60401b1990911617808255600192600691612e99918591600160301b900416614497565b92506101000a81548160ff021916908360ff1602179055508115612ee557600584018054600160ff86161b61ffff908116600160601b808404909216170261ffff60601b199091161790555b6040805160ff83811682528516602082015283151581830152905186917fe5e3866d049236e9a63527702312f0d1adee1e28f4b582d792f77cd896aa82da919081900360600190a26005840154600090612f4c90600160401b900463ffffffff168361341b565b90508060ff1660ff14612f9957808560050160076101000a81548160ff021916908360ff160217905550612f9486868460ff16600114612f8d5760046135aa565b60036135aa565b613058565b6005850154600160301b900460ff16600903612fbb57612f94868660056135aa565b612fc68260036143ad565b6005860180546001600160401b0342818116600160b01b0267ffffffffffffffff60b01b1960ff96909616600160281b029590951665ff000000000067ffffffffffffffff60b01b0119909316929092179390931790915560035461303492600160601b90910416906144b0565b60068601805467ffffffffffffffff19166001600160401b03929092169190911790555b505050505050565b6006810154600160401b900460ff16801561308957506005810154600160201b900460ff166002145b80156130a357506005810154600160281b900460ff166002145b156130b2576130b282826132b7565b5050565b806000036130c2575050565b6000826001600160a01b03168261c35090604051600060405180830381858888f193505050503d8060008114613114576040519150601f19603f3d011682016040523d82523d6000602084013e613119565b606091505b5050905080613169576001600160a01b0383166000908152600e60205260408120805484929061314a9084906142fd565b92505081905550816010600082825461316391906142fd565b90915550505b505050565b6040805144602080830191909152428284015260608083019590955260808201939093523390931b6bffffffffffffffffffffffff191660a08401528051808403609401815260b49093019052815191012090565b6000818152600b6020526040812054908190036131de575050565b600a8054600091906131f290600190614310565b815481106132025761320261437a565b9060005260206000200154905080600a60018461321f9190614310565b8154811061322f5761322f61437a565b6000918252602080832090910192909255828152600b90915260409020829055600a805480613260576132606144ec565b600082815260208082208301600019908101839055909201909255938152600b90935250506040812055565b81600003613298575050565b6130b26001600160a01b0382166132af57336132b1565b815b836130b6565b6005810154600160401b810463ffffffff16906000906132f29085906132e990600160301b900460ff166103e8614502565b61ffff1661316e565b90506000613301836002613b2b565b90508060ff1660ff14801561332c57506006546301000000900460ff166133296064846143c6565b10155b1561333f5761333c836001613b2b565b90505b8060ff1660ff14801561335d5750613358836004612e0b565b60ff16155b80156133775750603c6133756064600885901c6143c6565b105b15613380575060045b8060ff1660ff036134075760058401546000906133a890600160301b900460ff1660096143ad565b6133b99060ff16601085901c6143c6565b905060005b60098160ff161015613404576133d48582612e0b565b60ff166000036133fc57816000036133ee57809250613404565b816133f8816143da565b9250505b6001016133be565b50505b6134148585836000612e2f565b5050505050565b604080516103008101825260008082526001602083018190526002938301849052600360608401819052600460808501819052600560a08601819052600660c08701819052600760e0880181905260086101008901819052610120890188905261014089019590955261016088018290526101808801959095526101a087018390526101c08701949094526101e086018790526102008601526102208501829052610240850184905261026085018190526102808501919091526102a08401949094526102c08301939093526102e0820192909252815b60088160ff16101561359f5760ff841661352f86846135128560036144d0565b60ff16601881106135255761352561437a565b6020020151612e0b565b60ff1614801561355e575060ff8416613559868461354e8560036144d0565b613512906001614497565b60ff16145b8015613589575060ff841661358486846135798560036144d0565b613512906002614497565b60ff16145b156135975791506116359050565b6001016134f2565b5060ff949350505050565b6005820180547fffff0000000000000000ffffffffffffffffffffffffffffffffff00ffffffff16600160201b60ff84160267ffffffffffffffff60b01b191617600160b01b426001600160401b031602179055600482015461360e816002614323565b600f600082825461361f9190614310565b9250508190555060016013600082825461363991906142fd565b9091555050825460068401546001600160a01b0390911690600160401b900460ff16156138ab5760041960ff841601613716576001600160a01b0381166000908152600d602052604090208054600191906008906136a5908490600160401b900463ffffffff1661451d565b92506101000a81548163ffffffff021916908363ffffffff16021790555081600760008282546136d591906142fd565b925050819055508460008051602061455f833981519152846000856040516136ff9392919061453a565b60405180910390a261371181836130b6565b613414565b60021960ff8416016137f5576001600160a01b0381166000908152600d6020526040812080546001929061375190849063ffffffff1661451d565b92506101000a81548163ffffffff021916908363ffffffff16021790555081600d6000836001600160a01b03166001600160a01b0316815260200190815260200160002060010160008282546137a791906142fd565b9091555085905060008051602061455f83398151915284836137ca866002614323565b6040516137d99392919061453a565b60405180910390a2613711816137f0846002614323565b6130b6565b6001600160a01b0381166000908152600d6020526040902080546001919060049061382e908490600160201b900463ffffffff1661451d565b92506101000a81548163ffffffff021916908363ffffffff1602179055508160026138599190614323565b6007600082825461386a91906142fd565b9091555085905060008051602061455f833981519152843061388d866002614323565b60405161389c9392919061453a565b60405180910390a25050505050565b60041960ff8416016139b1576001600160a01b0381166000908152600d602052604090208054600191906008906138f0908490600160401b900463ffffffff1661451d565b82546101009290920a63ffffffff8181021990931691831602179091556001868101546001600160a01b03166000908152600d60205260409020805491935091600891613946918591600160401b90041661451d565b92506101000a81548163ffffffff021916908363ffffffff1602179055508460008051602061455f833981519152846000856040516139879392919061453a565b60405180910390a261399981836130b6565b6001840154613711906001600160a01b0316836130b6565b600060ff84166003146139d15760018501546001600160a01b03166139d3565b815b9050600060ff85166003146139e857826139f7565b60018601546001600160a01b03165b6001600160a01b0383166000908152600d602052604081208054929350600192909190613a2b90849063ffffffff1661451d565b92506101000a81548163ffffffff021916908363ffffffff16021790555083600d6000846001600160a01b03166001600160a01b031681526020019081526020016000206001016000828254613a8191906142fd565b90915550506001600160a01b0381166000908152600d60205260409020805460019190600490613abf908490600160201b900463ffffffff1661451d565b92506101000a81548163ffffffff021916908363ffffffff1602179055508660008051602061455f8339815191528684876002613afc9190614323565b604051613b0b9392919061453a565b60405180910390a2613b22826137f0866002614323565b50505050505050565b604080516103008101825260008082526001602083018190526002938301849052600360608401819052600460808501819052600560a08601819052600660c08701819052600760e0880181905260086101008901819052610120890188905261014089019590955261016088018290526101808801959095526101a087018390526101c08701949094526101e086018790526102008601526102208501829052610240850184905261026085018190526102808501919091526102a08401949094526102c08301939093526102e0820192909252815b60088160ff16101561359f57600082613c1c8360036144d0565b60ff1660188110613c2f57613c2f61437a565b60200201519050600083613c448460036144d0565b613c4f906001614497565b60ff1660188110613c6257613c6261437a565b60200201519050600084613c778560036144d0565b613c82906002614497565b60ff1660188110613c9557613c9561437a565b602002015190506000613ca88985612e0b565b90506000613cb68a85612e0b565b90506000613cc48b85612e0b565b90508960ff168360ff16148015613ce057508960ff168260ff16145b8015613ced575060ff8116155b15613d02578398505050505050505050611635565b8960ff168360ff16148015613d1c57508960ff168160ff16145b8015613d29575060ff8216155b15613d3e578498505050505050505050611635565b8960ff168260ff16148015613d5857508960ff168160ff16145b8015613d65575060ff8316155b15613d7a578598505050505050505050611635565b505060019094019350613c0292505050565b6040805161020081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810182905260e08101829052610100810182905261012081018290526101408101829052610160810182905261018081018290526101a081018290526101c081018290526101e081019190915290565b80358015158114613e2057600080fd5b919050565b600060208284031215613e3757600080fd5b613e4082613e10565b9392505050565b600060208284031215613e5957600080fd5b5035919050565b80356001600160a01b0381168114613e2057600080fd5b60008060408385031215613e8a57600080fd5b613e9383613e60565b946020939093013593505050565b80516001600160a01b031682526020810151613ec860208401826001600160a01b03169052565b506040810151613ee360408401826001600160a01b03169052565b506060810151613efe60608401826001600160a01b03169052565b506080810151608083015260a0810151613f2060a084018263ffffffff169052565b5060c0810151613f3560c084018260ff169052565b5060e0810151613f4a60e084018260ff169052565b506101008181015160ff9081169184019190915261012080830151909116908301526101408082015163ffffffff16908301526101608082015161ffff1690830152610180808201516001600160401b03908116918401919091526101a0808301518216908401526101c080830151909116908301526101e0908101511515910152565b60008151808452602080850194506020840160005b8381101561400a57613ff6878351613ea1565b610200969096019590820190600101613fe3565b509495945050505050565b604080825283519082018190526000906020906060840190828701845b8281101561404e57815184529284019290840190600101614032565b50505083810360208501526140638186613fce565b9695505050505050565b803560ff81168114613e2057600080fd5b6000806040838503121561409157600080fd5b823591506140a16020840161406d565b90509250929050565b61022081016140b98285613ea1565b826102008301529392505050565b80356001600160401b0381168114613e2057600080fd5b600080604083850312156140f157600080fd5b6140fa836140c7565b91506140a1602084016140c7565b803563ffffffff81168114613e2057600080fd5b60006020828403121561412e57600080fd5b613e4082614108565b6000806020838503121561414a57600080fd5b82356001600160401b038082111561416157600080fd5b818501915085601f83011261417557600080fd5b81358181111561418457600080fd5b8660208260051b850101111561419957600080fd5b60209290920196919550909350505050565b602081526000613e406020830184613fce565b600080604083850312156141d157600080fd5b6141da83614108565b91506140a160208401613e60565b6000602082840312156141fa57600080fd5b613e4082613e60565b61020081016116358284613ea1565b6000806040838503121561422557600080fd5b823591506140a160208401613e10565b6000806040838503121561424857600080fd5b61425183613e10565b91506140a16020840161406d565b60008060006060848603121561427457600080fd5b61427d84614108565b925061428b60208501614108565b915061429960408501614108565b90509250925092565b600080604083850312156142b557600080fd5b50508035926020909101359150565b600080604083850312156142d757600080fd5b823591506140a160208401613e60565b634e487b7160e01b600052601160045260246000fd5b80820180821115611635576116356142e7565b81810381811115611635576116356142e7565b8082028115828204841417611635576116356142e7565b634e487b7160e01b600052601260045260246000fd5b60008261435f5761435f61433a565b500490565b634e487b7160e01b600052604160045260246000fd5b634e487b7160e01b600052603260045260246000fd5b60208082526003908201526218985960ea1b604082015260600190565b60ff8281168282160390811115611635576116356142e7565b6000826143d5576143d561433a565b500690565b6000816143e9576143e96142e7565b506000190190565b600060018201614403576144036142e7565b5060010190565b805169ffffffffffffffffffff81168114613e2057600080fd5b600080600080600060a0868803121561443c57600080fd5b6144458661440a565b94506020860151935060408601519250606086015191506144686080870161440a565b90509295509295909350565b600063ffffffff8084168061448b5761448b61433a565b92169190910692915050565b60ff8181168382160190811115611635576116356142e7565b6001600160401b03818116838216019080821115611b2057611b206142e7565b60ff8181168382160290811690818114611b2057611b206142e7565b634e487b7160e01b600052603160045260246000fd5b61ffff818116838216019080821115611b2057611b206142e7565b63ffffffff818116838216019080821115611b2057611b206142e7565b60ff9390931683526001600160a01b0391909116602083015260408201526060019056fe8aa4b2265f9927c8e0d325013d639b306c4f4a7a5071ddbcbe6d127480475381a2646970667358221220ac31f9771c25fd94b643f98d8ca3123aefc60c4d9020f3cb311a9c36eb4c0cf664736f6c63430008180033";
+/* ========================================= */
+const PAGE_SOURCE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+(function boot(){
+  if (window.ethers) return start();
+  const s=document.createElement("script"); s.src="https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js";
+  s.onload=start; s.onerror=()=>alert("Could not load ethers.js — check your connection."); document.head.appendChild(s);
+})();
+
+function start(){
+const E = window.ethers, $ = id=>document.getElementById(id);
+const PLACEHOLDER = "__CONTRACT" + "_ADDRESS__";
+const iface = new E.Interface(ABI);
+const OPEN=1, PLAYING=2, X_WON=3, O_WON=4, DRAW=5, CANCELLED=6;
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+/* ---------- helpers ---------- */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+function toast(msg,kind="",ms=4000){const d=document.createElement("div");d.className="toast "+kind;d.innerHTML=msg;$("toasts").appendChild(d);setTimeout(()=>d.remove(),ms);return d;}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const short=a=>a?a.slice(0,6)+"…"+a.slice(-4):"";
+const usdC=c=>"$"+(Number(c)/100).toFixed(2);
+const usdM=m=>{const v=Number(m)/1e6;return "$"+(v>=0.01?v.toFixed(2):v.toFixed(4).replace(/0+$/,""))};
+const ethS=w=>{const v=Number(E.formatEther(w));return v===0?"0":v<0.0001?v.toExponential(2):v.toPrecision(3)};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const same=(a,b)=>a&&b&&a.toLowerCase()===b.toLowerCase();
+const views=["vSetup","vLanding","vLobby","vWait","vJoin","vGame","vAdmin"];
+function show(v){views.forEach(x=>$(x).classList.toggle("hidden",x!==v)); window.scrollTo(0,0);}
+function modal(title,text,ok="OK"){return new Promise(res=>{const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="card"><h2>${esc(title)}</h2><p class="muted">${esc(text)}</p><div class="acts"><button class="btn ghost small" data-x="0">Cancel</button><button class="btn small" data-x="1">${esc(ok)}</button></div></div>`;m.onclick=e=>{const x=e.target.dataset?.x;if(x!=null||e.target===m){m.remove();res(x==="1")}};document.body.appendChild(m);});}
+const X_SVG='<svg class="draw-x" viewBox="0 0 100 100"><line x1="22" y1="22" x2="78" y2="78"/><line x1="78" y1="22" x2="22" y2="78"/></svg>';
+const O_SVG='<svg class="draw-o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="31"/></svg>';
+const cellOf=(board,i)=>(Number(board)>>(i*2))&3;
+
+/* ---------- sound ---------- */
+let actx=null, soundOn=store.get("ttb_sound",true);
+function tone(freqs,dur=.12,type="sine",vol=.18){ if(!soundOn) return; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); let t=actx.currentTime; for(const f of freqs){ const o=actx.createOscillator(),g=actx.createGain(); o.type=type; o.frequency.value=f; g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+.015); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g).connect(actx.destination); o.start(t); o.stop(t+dur+.02); t+=dur*.8; } }catch{} }
+const sClick=()=>tone([660],.08,"triangle"), sTick=()=>tone([1200],.05,"square",.06), sStart=()=>tone([523,659,784],.12), sWin=()=>tone([523,659,784,1046],.16,"triangle",.22), sLose=()=>tone([392,330,262],.2,"sawtooth",.08), sDraw=()=>tone([440,440],.14);
+$("soundChip").onclick=()=>{soundOn=!soundOn;store.set("ttb_sound",soundOn);$("soundChip").textContent=soundOn?"🔊":"🔈";sClick();};
+
+/* ---------- chain ---------- */
+const NET=E.Network.from(CHAIN_ID);
+let rpcIdx=0;
+function rp(){ const p=new E.JsonRpcProvider(RPCS[rpcIdx],NET,{staticNetwork:NET,batchMaxCount:1}); p.pollingInterval=1000; return p; }
+let reader=null, CA=null;
+async function R(fn,...args){
+  for(let i=0;i<RPCS.length;i++){
+    try{ return await reader[fn](...args); }
+    catch(e){ if(e?.code==="CALL_EXCEPTION"&&e?.data) throw e; rpcIdx=(rpcIdx+1)%RPCS.length; reader=reader.connect(rp()); if(i===RPCS.length-1) throw e; }
+  }
+}
+const eth=window.ethereum;
+let signer=null, account=null, rw=null, owner=null;
+async function ensureBase(){
+  const id=await eth.request({method:"eth_chainId"}); if(parseInt(id,16)===CHAIN_ID) return;
+  try{ await eth.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x2105"}]}); }
+  catch(e){ if(e.code===4902||e?.data?.originalError?.code===4902){ await eth.request({method:"wallet_addEthereumChain",params:[{chainId:"0x2105",chainName:"Base",nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18},rpcUrls:[RPCS[0]],blockExplorerUrls:[EXPLORER]}]}); } else { toast("Please switch your wallet to Base","err"); throw e; } }
+}
+async function connectWallet(silent=false){
+  if(!eth){ $("noWallet").classList.remove("hidden"); if(!silent) toast("No wallet in this browser. Open this page in Chrome with MetaMask, or in the MetaMask / Coinbase Wallet app.","err",8000); return false; }
+  const accs=await eth.request({method:silent?"eth_accounts":"eth_requestAccounts"}); if(!accs||!accs.length) return false;
+  if(!silent) await ensureBase(); else { const id=await eth.request({method:"eth_chainId"}); if(parseInt(id,16)!==CHAIN_ID) return false; }
+  const bp=new E.BrowserProvider(eth,"any"); signer=await bp.getSigner(); account=await signer.getAddress();
+  $("acctChip").textContent=short(account); $("acctChip").classList.remove("hidden"); $("acctChip").onclick=()=>window.open(`${EXPLORER}/address/${account}`,"_blank");
+  return true;
+}
+function errName(e){
+  try{ const d=e?.data||e?.info?.error?.data||e?.error?.data; if(d&&d!=="0x") return iface.parseError(d)?.name; }catch{}
+  const m=(e?.shortMessage||e?.message||"").match(/(HouseTooSmall|ComputerOff|NotOpen|OwnGame|NotYourTurn|BadCell|TooLate|NotYet|Paused|BadStake|FeeTooLow|NotPlaying|NotCreator)/); return m?m[1]:null;
+}
+function friendly(e){
+  const c=e?.code, ic=e?.info?.error?.code;
+  if(c==="ACTION_REJECTED"||c===4001||ic===4001) return "Cancelled in wallet";
+  if(c==="INSUFFICIENT_FUNDS"||/insufficient funds/i.test(e?.message||"")) return "Not enough ETH on Base";
+  if(e?.code===-32002||/already pending/i.test(e?.message||"")) return "Your wallet already has an open request — click the wallet icon and finish it";
+  const n=errName(e);
+  return ({HouseTooSmall:"The house bank is too small for this stake — try a lower stake",ComputerOff:"Games vs the computer are switched off right now",NotOpen:"That game was already taken",OwnGame:"That's your own game",NotYourTurn:"Not your turn",BadCell:"That square is taken",TooLate:"Too late — time ran out",Paused:"New games are paused by the admin",BadStake:"Invalid stake",NotPlaying:"Game is over"})[n] || ("Transaction failed"+(e?.shortMessage?": "+esc(e.shortMessage):""));
+}
+/* main-wallet transaction (wallet popup) */
+async function mainTx(fn,args,value,label,minGas=0n){
+  await ensureBase();
+  const ov=value!=null?{value}:{};
+  try{ await reader[fn].staticCall(...args,{...ov,from:account}); }catch(e){ if(e?.code==="CALL_EXCEPTION"||e?.data) throw e; }
+  const gas=await rw[fn].estimateGas(...args,ov); let gl=gas*13n/10n+20000n; if(gl<minGas) gl=minGas; ov.gasLimit=gl;
+  const tt=toast(`<span class="spin"></span>${esc(label||"Confirm in your wallet…")}`,"",180000);
+  try{ const s=await rw[fn](...args,ov); tt.innerHTML='<span class="spin"></span>Waiting for Base…'; return await s.wait(); } finally{ tt.remove(); }
+}
+
+/* ---------- game wallet (session key) ---------- */
+let sess=null;
+function sessionKeyName(){ return `ttb_sess_${CA}_${account.toLowerCase()}`; }
+function loadSession(){
+  let pk=store.get(sessionKeyName(),null);
+  if(!pk){ pk=E.Wallet.createRandom().privateKey; store.set(sessionKeyName(),pk); }
+  sess=new E.Wallet(pk, rp());
+}
+let feeCache={t:0};
+async function feeParams(){
+  if(Date.now()-feeCache.t<20000) return feeCache;
+  const p=sess.provider;
+  const blk=await p.getBlock("latest");
+  let prio=1000000n; try{ prio=BigInt(await p.send("eth_maxPriorityFeePerGas",[])); }catch{}
+  if(prio>50000000n) prio=50000000n; if(prio<1000n) prio=1000n;
+  const base=BigInt(blk.baseFeePerGas||1000000n);
+  feeCache={t:Date.now(), maxFeePerGas: base*2n+prio, maxPriorityFeePerGas: prio};
+  return feeCache;
+}
+const MOVE_GAS=300000n;
+async function sessionBudget(){
+  const fp=await feeParams(); const fee=await R("moveFeeWei");
+  const gasCost=MOVE_GAS*fp.maxFeePerGas;
+  return (5n*(fee*102n/100n+gasCost) + 5n*gasCost)*12n/10n + E.parseEther("0.000002");
+}
+async function sessionBalance(){ return await sess.provider.getBalance(sess.address); }
+let sessBusy=false;
+async function sessionSend(fn,args,value=0n){
+  const data=iface.encodeFunctionData(fn,args);
+  for(let i=0;i<RPCS.length;i++){
+    try{
+      const fp=await feeParams();
+      const nonce=await sess.provider.getTransactionCount(sess.address,"pending");
+      const tx=await sess.sendTransaction({to:CA,data,value,gasLimit:MOVE_GAS,maxFeePerGas:fp.maxFeePerGas,maxPriorityFeePerGas:fp.maxPriorityFeePerGas,nonce,chainId:CHAIN_ID,type:2});
+      const rc=await tx.wait();
+      if(rc.status!==1) throw Object.assign(new Error("reverted"),{code:"CALL_EXCEPTION"});
+      return rc;
+    }catch(e){
+      const msg=(e?.message||"");
+      if(e?.code==="CALL_EXCEPTION"||e?.code==="INSUFFICIENT_FUNDS"||/insufficient funds|nonce|revert/i.test(msg)) throw e;
+      rpcIdx=(rpcIdx+1)%RPCS.length; sess=sess.connect(rp());
+      if(i===RPCS.length-1) throw e;
+    }
+  }
+}
+async function refreshWallet(){
+  if(!sess) return;
+  try{
+    const b=await sessionBalance(), wpu=await R("weiPerUsd");
+    const usd=Number(b)/Number(wpu);
+    $("gwBal").textContent=`${ethS(b)} ETH`; $("gwAddr").textContent=`≈ $${usd.toFixed(2)} · ${short(sess.address)}`;
+    $("gwChip").textContent=`🎮 $${usd.toFixed(2)}`; $("gwChip").classList.remove("hidden");
+    const pend=await R("pendingWithdrawals",account);
+    $("pendingBox").classList.toggle("hidden",pend===0n); $("pendAmt").textContent=ethS(pend)+" ETH";
+  }catch{}
+}
+$("gwChip").onclick=()=>{ if(me()) goLobby(); };
+$("btnSweep").onclick=async()=>{
+  try{
+    const b=await sessionBalance(); const fp=await feeParams();
+    const value=b-21000n*fp.maxFeePerGas-E.parseEther("0.000002");
+    if(value<=0n) return toast("Game wallet is empty");
+    const tx=await sess.sendTransaction({to:account,value,gasLimit:21000n,maxFeePerGas:fp.maxFeePerGas,maxPriorityFeePerGas:fp.maxPriorityFeePerGas,chainId:CHAIN_ID,type:2});
+    const tt=toast('<span class="spin"></span>Sending to your wallet…',"",60000); await tx.wait(); tt.remove();
+    toast(`Sent ${ethS(value)} ETH to your wallet`,"ok"); refreshWallet();
+  }catch(e){ toast(friendly(e),"err"); }
+};
+$("btnTopUp").onclick=async()=>{
+  try{ await ensureBase(); const wpu=await R("weiPerUsd"); const v=wpu/2n;
+    const tt=toast('<span class="spin"></span>Confirm in your wallet…',"",120000);
+    try{ const tx=await signer.sendTransaction({to:sess.address,value:v}); tt.innerHTML='<span class="spin"></span>Waiting for Base…'; await tx.wait(); } finally{ tt.remove(); }
+    toast("Game wallet topped up","ok"); refreshWallet();
+  }catch(e){ toast(friendly(e),"err"); }
+};
+$("btnClaim").onclick=async()=>{ try{ await mainTx("withdraw",[]); toast("Claimed","ok"); refreshWallet(); }catch(e){ toast(friendly(e),"err"); } };
+
+/* ================= SETUP ================= */
+function buildFileWith(addr){ return fetch(location.href,{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.text()}).catch(()=>PAGE_SOURCE).then(src=>{ if(!src.includes(PLACEHOLDER)) src=PAGE_SOURCE; return src.replace(PLACEHOLDER,addr); }); }
+async function downloadFile(addr){ const html=await buildFileWith(addr); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([html],{type:"text/html"})); a.download="index.html"; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000); }
+function initSetup(){
+  show("vSetup");
+  const step=m=>{ $("deployStep").textContent=m; $("deployStep").classList.toggle("hidden",!m); };
+  $("btnDeploy").onclick=async()=>{
+    try{
+      if(!eth){ step("No wallet in this browser. Open this page in Chrome with MetaMask, or in the MetaMask / Coinbase Wallet app."); return; }
+      step("Step 1: unlock your wallet and approve the connection (click the fox icon at the top right of Chrome if no window appears).");
+      if(!await connectWallet()){ step(""); return; }
+      step("");
+      if(!await modal("Deploy TicTacBase",`Deploy from ${short(account)}? All move fees will go to this wallet.`,"Deploy")) return;
+      $("btnDeploy").disabled=true; $("btnDeploy").innerHTML='<span class="spin"></span>Deploying…';
+      step("Step 2: confirm the deployment in your wallet (fox icon at the top right if no window appears).");
+      const c=await new E.ContractFactory(ABI,BYTECODE,signer).deploy();
+      step("Step 3: waiting for Base to confirm… (a few seconds)");
+      await c.waitForDeployment(); const addr=await c.getAddress(); step("");
+      store.set("ttb_preview_contract",addr);
+      $("deployedAddr").innerHTML=`<a href="${EXPLORER}/address/${addr}" target="_blank" rel="noopener">${addr}</a>`;
+      $("deployResult").classList.remove("hidden"); $("btnDeploy").classList.add("hidden");
+      $("btnDownload").onclick=()=>downloadFile(addr);
+    }catch(e){ step(friendly(e).replace(/<[^>]+>/g,"")); toast(friendly(e),"err",8000); $("btnDeploy").disabled=false; $("btnDeploy").textContent="Connect wallet & deploy"; }
+  };
+  $("btnUseAddr").onclick=async()=>{ const a=$("existingAddr").value.trim(); if(!E.isAddress(a)) return toast("Invalid address","err"); try{ await new E.Contract(a,ABI,rp()).moveTimeout(); downloadFile(E.getAddress(a)); }catch{ toast("That address is not a TicTacBase contract on Base","err"); } };
+}
+
+/* ================= APP ================= */
+let INFO=null; // info()
+let curGame=0, G=null, pollT=null, offset=0, offsets=[];
+const me=()=>account;
+
+function demoBoard(){
+  const b=[1,2,0,0,1,2,0,0,1];
+  $("demoBoard").innerHTML=`<div class="board">${b.map((v,i)=>`<div class="cell ${[0,4,8].includes(i)?"win":""}">${v===1?X_SVG:v===2?O_SVG:""}</div>`).join("")}</div>`;
+}
+async function loadInfo(){
+  const i=await R("info");
+  INFO={games:i[0],finished:i[1],volume:i[2],fees:i[3],wpu:i[4],moveFee:i[5],timeout:Number(i[6]),min:Number(i[7]),max:Number(i[8]),step:Number(i[9])};
+  $("lpFee").textContent=usdM(await R("moveFeeMicroUsd"));
+  return INFO;
+}
+async function initApp(){
+  reader=new E.Contract(CA,ABI,rp());
+  show("vLanding"); demoBoard();
+  $("lnkMM").href="https://metamask.app.link/dapp/"+location.host+location.pathname;
+  $("lnkCB").href="https://go.cb-w.com/dapp?cb_url="+encodeURIComponent(location.href);
+  loadInfo().then(i=>{ $("pubStats").textContent=`${i.games} games played · ${ethS(i.volume)} ETH staked so far`; }).catch(()=>{});
+  $("btnConnect").onclick=async()=>{ try{ if(await connectWallet()) await afterConnect(); }catch(e){ toast(friendly(e),"err"); } };
+  if(eth){ eth.on?.("accountsChanged",()=>location.reload()); eth.on?.("chainChanged",()=>location.reload()); try{ if(await connectWallet(true)) await afterConnect(); }catch{} }
+}
+async function afterConnect(){
+  rw=new E.Contract(CA,ABI,signer);
+  loadSession();
+  owner=await R("owner");
+  $("adminChip").classList.toggle("hidden",!same(owner,account));
+  $("soundChip").classList.remove("hidden"); $("soundChip").textContent=soundOn?"🔊":"🔈";
+  await loadInfo().catch(()=>{});
+  setupSlider();
+  const want=Number(new URLSearchParams(location.search).get("game")||0);
+  if(want) return openGameById(want);
+  // resume a running game of mine
+  try{ const [ids,list]=await R("getPlayerGames",account,5); for(let i=0;i<ids.length;i++){ const g=list[i]; if(Number(g.status)===PLAYING) return enterGame(Number(ids[i])); if(Number(g.status)===OPEN) return enterWait(Number(ids[i])); } }catch{}
+  goLobby();
+}
+$("brand").onclick=()=>{ if(account && !curGame) goLobby(); };
+
+/* ---------- lobby ---------- */
+let lobbyT=null;
+function setupSlider(){
+  const s=$("stake"); s.min=INFO?.min||10; s.max=INFO?.max||500; s.step=INFO?.step||10;
+  const saved=store.get("ttb_stake",100); s.value=Math.min(Math.max(saved,s.min),s.max);
+  const q=$("quick"); q.innerHTML="";
+  [10,50,100,200,500].filter(c=>c>=s.min&&c<=s.max).forEach(c=>{ const b=document.createElement("button"); b.textContent=usdC(c); b.onclick=()=>{ s.value=c; onStake(); }; q.appendChild(b); });
+  s.oninput=onStake; onStake();
+}
+function onStake(){
+  const s=$("stake"), c=Number(s.value);
+  s.style.setProperty("--p",((c-s.min)/(s.max-s.min)*100)+"%");
+  $("stakeShow").textContent=usdC(c); $("btnPlay").textContent=`Play vs player · ${usdC(c)}`; $("btnCpu").textContent=`Play vs computer 🤖 · ${usdC(c)}`; updateCpuBtn();
+  $("playSub").textContent=`Joins a player waiting at the same stake, or opens a new game. Winner gets ${usdC(c*2)}.`;
+  if(INFO) $("ethEq").textContent=`≈ ${ethS(INFO.wpu*BigInt(c)/100n)} ETH per player · + ${usdM(10000)} per move`;
+  if(INFO) R("moveFeeMicroUsd").then(f=>$("ethEq").textContent=`≈ ${ethS(INFO.wpu*BigInt(c)/100n)} ETH per player · ${usdM(f)} per move`).catch(()=>{});
+  [...$("quick").children].forEach(b=>b.classList.toggle("on",b.textContent===usdC(c)));
+  store.set("ttb_stake",c);
+}
+function goLobby(){
+  stopPoll(); curGame=0; G=null; history.replaceState(null,"",location.pathname);
+  show("vLobby"); loadLobby(); refreshWallet(); loadCpu();
+  clearInterval(lobbyT); lobbyT=setInterval(()=>{ if(!$("vLobby").classList.contains("hidden")) loadLobby(); },5000);
+}
+function statusTag(g,mine){
+  const st=Number(g.status), iAmX=same(g.playerX,account);
+  if(st===OPEN) return '<span class="tag t-open">Waiting</span>';
+  if(st===PLAYING) return '<span class="tag t-play">Playing</span>';
+  if(st===DRAW) return '<span class="tag t-draw">Draw</span>';
+  if(st===CANCELLED) return '<span class="tag t-draw">Cancelled</span>';
+  const won=(st===X_WON)===iAmX; return won?`<span class="tag t-won">Won +${usdC(Number(g.stakeCents))}</span>`:'<span class="tag t-lost">Lost</span>';
+}
+async function loadLobby(){
+  try{
+    const [ids,list]=await R("getOpenGames",0,100);
+    const now=Date.now()/1000;
+    let html="";
+    const rows=ids.map((id,i)=>({id:Number(id),g:list[i]})).sort((a,b)=>Number(a.g.stakeCents)-Number(b.g.stakeCents));
+    for(const {id,g} of rows){
+      const mine=same(g.playerX,account);
+      const age=Math.max(0,Math.round((now-Number(g.created))/60));
+      html+=`<div class="row"><div class="amt">${usdC(g.stakeCents)}</div><div class="meta">Game #${id} · by ${mine?"you":short(g.playerX)} · ${age?age+" min ago":"just now"}</div>${mine?`<button class="btn ghost small" data-open="${id}">Open</button>`:`<button class="btn small" data-join="${id}">Join</button>`}</div>`;
+    }
+    $("openList").innerHTML=html||'<div class="empty">No open games right now.<br>Pick a stake and press Play — you\'ll be first in line.</div>';
+    $("openCount").textContent=rows.length?`(${rows.length})`:"";
+    $("openList").querySelectorAll("[data-join]").forEach(b=>b.onclick=()=>joinFlow(Number(b.dataset.join)));
+    $("openList").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>enterWait(Number(b.dataset.open)));
+    const st=await R("stats",account);
+    $("sW").textContent=st.wins; $("sL").textContent=st.losses; $("sD").textContent=st.draws; $("sWon").textContent="$"+(INFO?(Number(st.wonWei)/Number(INFO.wpu)).toFixed(2):"0");
+    const [mids,ml]=await R("getPlayerGames",account,12);
+    let mh=""; mids.forEach((id,i)=>{ const g=ml[i]; mh+=`<div class="row"><div class="amt">${usdC(g.stakeCents)}</div><div class="meta">Game #${id} · vs ${g.vsComputer?"🤖 computer":(short(same(g.playerX,account)?g.playerO:g.playerX)||"—")}</div>${statusTag(g)}${[OPEN,PLAYING].includes(Number(g.status))?` <button class="btn small" data-go="${id}">Open</button>`:` <button class="btn ghost small" data-go="${id}">View</button>`}</div>`; });
+    $("myList").innerHTML=mh||'<div class="empty">No games yet.</div>';
+    $("myList").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>openGameById(Number(b.dataset.go)));
+  }catch(e){ console.warn(e); }
+}
+async function topUpValue(){ try{ const need=await sessionBudget(); const bal=await sessionBalance(); return need>bal?need-bal:0n; }catch{ return 0n; } }
+$("btnPlay").onclick=async()=>{
+  const c=Number($("stake").value); const btn=$("btnPlay"); btn.disabled=true;
+  try{
+    const [ids,list]=await R("getOpenGames",0,200);
+    const cand=ids.map((id,i)=>({id:Number(id),g:list[i]})).filter(x=>Number(x.g.stakeCents)===c && !same(x.g.playerX,account) && !same(x.g.sessionX,sess.address)).sort((a,b)=>Number(a.g.created)-Number(b.g.created));
+    for(const x of cand.slice(0,3)){ try{ await reader.joinGame.staticCall(x.id,sess.address,{value:x.g.stakeWei,from:account}); return await joinFlow(x.id,x.g); }catch{} }
+    await createFlow(c);
+  }catch(e){ toast(friendly(e),"err",6000); }
+  finally{ btn.disabled=false; }
+};
+async function createFlow(c){
+  const stake=await R("stakeWeiFor",c); const top=await topUpValue();
+  const rc=await mainTx("createGame",[c,sess.address],stake+top,`Confirm stake ${usdC(c)}${top?` + ${ethS(top)} ETH for move fees`:""} in your wallet…`);
+  const ev=rc.logs.map(l=>{try{return iface.parseLog(l)}catch{return null}}).find(x=>x&&x.name==="GameCreated");
+  sClick(); enterWait(Number(ev.args.id));
+}
+async function joinFlow(id,g){
+  g=g||await R("getGame",id); const top=await topUpValue();
+  try{
+    await mainTx("joinGame",[id,sess.address],g.stakeWei+top,`Confirm stake ${usdC(g.stakeCents)}${top?` + ${ethS(top)} ETH for move fees`:""} in your wallet…`);
+  }catch(e){ if(errName(e)==="NotOpen"){ toast("Someone else joined first — try another game","err"); loadLobby(); return; } throw e; }
+  enterGame(id);
+}
+
+/* ---------- vs computer ---------- */
+let CPU={enabled:true,max:0};
+async function loadCpu(){ try{ const ci=await R("computerInfo"); CPU={enabled:ci[0],mistake:Number(ci[1]),bank:ci[2],max:Number(ci[3])}; }catch{} updateCpuBtn(); }
+function updateCpuBtn(){
+  const c=Number($("stake").value), ok=CPU.enabled && CPU.max>=c;
+  $("btnCpu").disabled=!ok;
+  $("cpuSub").textContent = !CPU.enabled ? "Games vs the computer are switched off right now." : ok ? `The computer matches your stake from the house bank and answers instantly. Win ${usdC(c*2)}.` : (CPU.max>=10 ? `House bank covers stakes up to ${usdC(Math.floor(CPU.max/10)*10)} right now.` : "The house bank is empty right now — play another player instead.");
+}
+$("btnCpu").onclick=async()=>{
+  const c=Number($("stake").value), btn=$("btnCpu"); btn.disabled=true;
+  try{
+    const stake=await R("stakeWeiFor",c); const top=await topUpValue();
+    const rc=await mainTx("playComputer",[c,sess.address],stake+top,`Confirm stake ${usdC(c)}${top?` + ${ethS(top)} ETH for move fees`:""} in your wallet…`,450000n);
+    const ev=rc.logs.map(l=>{try{return iface.parseLog(l)}catch{return null}}).find(x=>x&&x.name==="GameCreated");
+    sStart(); enterGame(Number(ev.args.id));
+  }catch(e){ toast(friendly(e),"err",6000); }
+  finally{ updateCpuBtn(); }
+};
+
+/* ---------- free practice (in the browser, no money) ---------- */
+const PRACTICE=-1;
+function aiCell(board,moves,mistake=25){
+  const cellv=i=>cellOf(board,i);
+  const find=side=>{ for(const L of LINES){ const v=L.map(cellv); if(v.filter(x=>x===side).length===2&&v.includes(0)) return L[v.indexOf(0)]; } return -1; };
+  let c=find(2);
+  if(c<0 && Math.random()*100>=mistake) c=find(1);
+  if(c<0 && !cellv(4) && Math.random()<.6) c=4;
+  if(c<0){ const e=[...Array(9).keys()].filter(i=>!cellv(i)); c=e[Math.floor(Math.random()*e.length)]; }
+  return c;
+}
+function localPlace(cell,forced){
+  const g=G, side=Number(g.turn);
+  g.board=Number(g.board)|(side<<(cell*2)); g.moves=Number(g.moves)+1; if(forced) g.forcedMask=Number(g.forcedMask)|(1<<cell);
+  const li=LINES.findIndex(L=>L.every(i=>cellOf(g.board,i)===side));
+  const now=Date.now()/1000;
+  if(li>=0){ g.winLine=li; g.status= side===1?X_WON:O_WON; }
+  else if(g.moves===9) g.status=DRAW;
+  else { g.turn=3-side; g.lastMove=now; g.deadline=now+10; }
+  sClick(); render();
+  if(Number(g.status)===PLAYING && Number(g.turn)===2) setTimeout(()=>{ if(curGame===PRACTICE&&G===g&&Number(g.status)===PLAYING) localPlace(aiCell(g.board,g.moves),false); },550);
+}
+function startPractice(){
+  stopPoll(); clearInterval(lobbyT);
+  curGame=PRACTICE; pending=null; resultShown=false; mySide=1; offset=0;
+  const now=Date.now()/1000, first=Math.random()<.5?1:2;
+  G={status:PLAYING,turn:first,board:0,moves:0,winLine:255,forcedMask:0,lastMove:now,deadline:now+10,stakeCents:0,playerX:account||"you",playerO:"computer",vsComputer:true,sessionX:null,sessionO:null};
+  show("vGame"); buildBoard(); render(); requestAnimationFrame(tick);
+  if(first===2) setTimeout(()=>localPlace(aiCell(0,0),false),700);
+  stopPoll(); pollT=setInterval(()=>{ if(curGame!==PRACTICE||!G) return; if(Number(G.status)===PLAYING&&Number(G.turn)===1&&Date.now()/1000>G.deadline+0.3){ const e=[...Array(9).keys()].filter(i=>!cellOf(G.board,i)); localPlace(e[Math.floor(Math.random()*e.length)],true); } },250);
+}
+$("btnPractice").onclick=e=>{ e.preventDefault(); startPractice(); };
+$("btnPracticeL").onclick=()=>startPractice();
+
+/* ---------- waiting ---------- */
+async function enterWait(id){
+  curGame=id; show("vWait"); history.replaceState(null,"",`?game=${id}`);
+  const g=await R("getGame",id);
+  $("wId").textContent="#"+id; $("wStake").textContent=usdC(g.stakeCents); $("wPot").textContent=usdC(Number(g.stakeCents)*2);
+  $("wLink").value=location.origin+location.pathname+"?game="+id;
+  stopPoll(); pollT=setInterval(async()=>{ try{ const x=await R("getGame",id); if(Number(x.status)===PLAYING){ stopPoll(); sStart(); enterGame(id); } else if(Number(x.status)===CANCELLED){ stopPoll(); goLobby(); } }catch{} },1500);
+}
+$("btnCopy").onclick=()=>{ navigator.clipboard?.writeText($("wLink").value); toast("Link copied"); };
+$("btnCancel").onclick=async()=>{
+  const id=curGame; $("btnCancel").disabled=true;
+  try{
+    const bal=await sessionBalance().catch(()=>0n);
+    if(bal>E.parseEther("0.000005")){ const tt=toast('<span class="spin"></span>Cancelling…',"",60000); try{ await sessionSend("cancelGame",[id]); } finally{ tt.remove(); } }
+    else await mainTx("cancelGame",[id]);
+    toast("Game cancelled — stake refunded","ok"); goLobby();
+  }catch(e){ toast(friendly(e),"err"); } finally{ $("btnCancel").disabled=false; }
+};
+
+/* ---------- shared link ---------- */
+async function openGameById(id){
+  let g; try{ g=await R("getGame",id); }catch{ return goLobby(); }
+  const st=Number(g.status);
+  if(st===0){ toast("Game not found","err"); return goLobby(); }
+  if(st===OPEN){
+    if(same(g.playerX,account)) return enterWait(id);
+    curGame=id; show("vJoin"); history.replaceState(null,"",`?game=${id}`);
+    $("jId").textContent="#"+id; $("jStake").textContent=usdC(g.stakeCents); $("jPot").textContent=usdC(Number(g.stakeCents)*2);
+    $("btnJoinShared").textContent=`Join for ${usdC(g.stakeCents)}`;
+    $("btnJoinShared").onclick=async()=>{ $("btnJoinShared").disabled=true; try{ await joinFlow(id); }catch(e){ toast(friendly(e),"err"); } finally{ $("btnJoinShared").disabled=false; } };
+    return;
+  }
+  enterGame(id);
+}
+$("jBack").onclick=e=>{ e.preventDefault(); goLobby(); };
+
+/* ---------- game ---------- */
+let mySide=0, pending=null, forcedSent={}, lastTickSec=-1, resultShown=false, moveBusy=false;
+function stopPoll(){ clearInterval(pollT); pollT=null; }
+function chainNow(){ return Date.now()/1000 + offset; }
+async function enterGame(id){
+  clearInterval(lobbyT);
+  curGame=id; G=null; pending=null; resultShown=false; forcedSent={}; mySide=0; offsets=[];
+  history.replaceState(null,"",`?game=${id}`);
+  show("vGame"); buildBoard();
+  await pollGame();
+  stopPoll(); pollT=setInterval(pollGame,1000);
+  requestAnimationFrame(tick);
+}
+function buildBoard(){
+  const b=$("board"); b.innerHTML="";
+  for(let i=0;i<9;i++){ const c=document.createElement("button"); c.className="cell"; c.dataset.i=i; c.onclick=()=>clickCell(i); b.appendChild(c); }
+}
+let polling=false;
+async function pollGame(){
+  if(polling||!curGame||curGame===PRACTICE) return; polling=true;
+  try{
+    const [g,nowTs]=await R("getGameNow",curGame);
+    offsets.push(Number(nowTs)+0.8-Date.now()/1000); if(offsets.length>8) offsets.shift(); offset=Math.max(...offsets);
+    const prevMoves=G?Number(G.moves):-1;
+    G=g;
+    mySide = same(g.playerX,account)||same(g.sessionX,sess?.address) ? 1 : same(g.playerO,account)||same(g.sessionO,sess?.address) ? 2 : 0;
+    if(pending!=null && cellOf(g.board,pending)!==0) pending=null;
+    if(prevMoves>=0 && Number(g.moves)>prevMoves && !moveBusy) sClick();
+    render();
+    maybeForce();
+  }catch(e){ console.warn("poll",e); }
+  finally{ polling=false; }
+}
+function render(){
+  const g=G; if(!g) return;
+  const st=Number(g.status), turn=Number(g.turn), stakeC=Number(g.stakeCents);
+  const practice=curGame===PRACTICE;
+  $("potAmt").textContent=practice?"Practice":usdC(stakeC*2); $("potSub").textContent=practice?"free game · no money involved":g.vsComputer?`your ${usdC(stakeC)} vs house ${usdC(stakeC)} · game #${curGame}`:`stake ${usdC(stakeC)} each · game #${curGame}`;
+  $("pX").querySelector(".mark").innerHTML=X_SVG; $("pO").querySelector(".mark").innerHTML=O_SVG;
+  $("pXn").textContent = mySide===1?"You (X)":"Player X"; $("pOn").textContent = mySide===2?"You (O)":"Player O";
+  $("pXa").textContent=practice?"":short(g.playerX); $("pOa").textContent=g.vsComputer?"":short(g.playerO);
+  if(g.vsComputer) $("pOn").textContent="Computer 🤖";
+  $("pX").classList.toggle("turn",st===PLAYING&&turn===1); $("pO").classList.toggle("turn",st===PLAYING&&turn===2);
+  const winCells = Number(g.winLine)!==255 && st>=3 && st<=4 ? LINES[Number(g.winLine)] : [];
+  const myTurn = st===PLAYING && turn===mySide;
+  [...$("board").children].forEach((c,i)=>{
+    const v=cellOf(g.board,i), forced=(Number(g.forcedMask)>>i)&1;
+    const key=v+"|"+forced+"|"+(pending===i);
+    if(c.dataset.k!==key){ c.dataset.k=key;
+      c.innerHTML = v===1?X_SVG : v===2?O_SVG : (pending===i ? (mySide===1?X_SVG:O_SVG) : "");
+      if(forced&&v) c.insertAdjacentHTML("beforeend",'<span class="bot" title="Placed by the computer (time ran out)">🤖</span>');
+    }
+    c.classList.toggle("pending",pending===i&&!v);
+    c.classList.toggle("win",winCells.includes(i));
+    c.classList.toggle("can",myTurn&&!v&&pending==null);
+  });
+  $("btnLeave").textContent = practice ? (account?"Back to lobby":"Back") : st===PLAYING && mySide ? "Lobby (game keeps running)" : "Back to lobby";
+  if(st===PLAYING && practice){ $("gfoot").textContent="Practice: 10 seconds per move, then the computer moves for you. No money involved."; }
+  else if(st===PLAYING){
+    $("gfoot").textContent = mySide ? `Each move costs ${usdM(10000)} from your game wallet — no pop-ups. Miss ${INFO?.timeout||10}s and the computer moves for you.` : "You're watching this game.";
+    R("moveFeeMicroUsd").then(f=>{ if(mySide&&curGame!==PRACTICE&&Number(G?.status)===PLAYING) $("gfoot").textContent=`Each move costs ${usdM(f)} from your game wallet — no pop-ups. Miss ${INFO?.timeout||10}s and the computer moves for you.`; }).catch(()=>{});
+  }
+  if(st>=3 && !resultShown){ resultShown=true; showResult(); }
+}
+function tick(){
+  if(!curGame||$("vGame").classList.contains("hidden")) return;
+  const g=G;
+  if(g){
+    const st=Number(g.status);
+    if(st===PLAYING){
+      const left=Math.max(0, Number(g.deadline)-chainNow());
+      const total=Math.max(1, Number(g.deadline)-Number(g.lastMove));
+      const turn=Number(g.turn), myTurn=turn===mySide;
+      $("ringNum").textContent=Math.ceil(left);
+      $("ringArc").style.strokeDashoffset = 169.6*(1-left/total);
+      $("ringArc").style.stroke = left<=3 ? "#ff5a67" : turn===1 ? "#2f6bff" : "#ffb020";
+      if(myTurn){ $("turnText").textContent = pending!=null ? "Placing your move…" : left>0 ? "Your move!" : "Time's up!"; $("turnSub").textContent = left>0 ? "Tap an empty square" : "The computer is placing a random mark for you…"; }
+      else if(mySide && g.vsComputer){ $("turnText").textContent = "Computer's move 🤖"; $("turnSub").textContent = "thinking…"; }
+      else if(mySide){ $("turnText").textContent = "Opponent's move"; $("turnSub").textContent = left>0 ? `${turn===1?"X":"O"} is thinking…` : "Time's up — the computer moves for them…"; }
+      else { $("turnText").textContent = `${turn===1?"X":"O"} to move`; $("turnSub").textContent=""; }
+      const sec=Math.ceil(left); if(myTurn && sec<=3 && sec>0 && sec!==lastTickSec){ lastTickSec=sec; sTick(); }
+    } else {
+      $("ringNum").textContent="✓"; $("ringArc").style.strokeDashoffset=0; $("ringArc").style.stroke="#22d37f";
+      $("turnText").textContent = st===DRAW?"Draw":st===CANCELLED?"Cancelled":(st===X_WON?"X":"O")+" wins"; $("turnSub").textContent="";
+    }
+  }
+  requestAnimationFrame(tick);
+}
+async function clickCell(i){
+  const g=G; if(!g||Number(g.status)!==PLAYING||Number(g.turn)!==mySide||cellOf(g.board,i)||pending!=null||moveBusy) return;
+  if(curGame===PRACTICE){ if(Date.now()/1000>g.deadline) return; return localPlace(i,false); }
+  if(Number(g.deadline)-chainNow()<0.4) return toast("Too late — the computer is moving for you","err");
+  pending=i; moveBusy=true; sClick(); render();
+  try{
+    const fee=await R("moveFeeWei");
+    await sessionSend("move",[curGame,i],fee*102n/100n);
+    await pollGame();
+  }catch(e){
+    pending=null; render();
+    const n=errName(e);
+    if(e?.code==="INSUFFICIENT_FUNDS"||/insufficient funds/i.test(e?.message||"")) toast("Game wallet is empty — top it up in the lobby (your game continues)","err",7000);
+    else if(n==="TooLate"||/revert/i.test(e?.message||"")) toast("Too late — time ran out for that move","err");
+    else toast(friendly(e),"err");
+    pollGame();
+  } finally{ moveBusy=false; }
+}
+async function maybeForce(){
+  const g=G; if(curGame===PRACTICE||!g||Number(g.status)!==PLAYING||!mySide||!sess) return;
+  const myTurn=Number(g.turn)===mySide;
+  const wait = myTurn ? 2.5 : 1.2;
+  if(chainNow() <= Number(g.deadline)+wait) return;
+  const key=curGame+":"+g.moves; if(forcedSent[key]) return; forcedSent[key]=true;
+  try{ await sessionSend("forceMove",[curGame]); pollGame(); }
+  catch(e){ /* the other player may have triggered it first */ setTimeout(()=>{ if(G&&Number(G.moves)===Number(g.moves)) delete forcedSent[key]; },4000); }
+}
+function showResult(){
+  const g=G, st=Number(g.status), stakeC=Number(g.stakeCents);
+  let title, big, cls, snd;
+  if(st===DRAW){ title="It's a draw"; big="Stake back"; cls="#c3cde6"; snd=sDraw; }
+  else if(st===CANCELLED){ title="Game cancelled"; big="Refunded"; cls="#c3cde6"; snd=()=>{}; }
+  else { const xWon=st===X_WON; const iWon=(xWon&&mySide===1)||(!xWon&&mySide===2);
+    if(!mySide){ title=(xWon?"X":"O")+" wins"; big=usdC(stakeC*2); cls="#22d37f"; snd=sWin; }
+    else if(iWon){ title="You win! 🎉"; big=curGame===PRACTICE?"Nice!":"Won "+usdC(stakeC*2); cls="#22d37f"; snd=sWin; }
+    else { title=g.vsComputer?"The computer wins 🤖":"You lose"; big=curGame===PRACTICE?"Try again":"−"+usdC(stakeC); cls="#ff5a67"; snd=sLose; } }
+  if(st===DRAW && curGame===PRACTICE) big="Draw";
+  snd();
+  setTimeout(()=>{
+    const o=document.createElement("div"); o.className="overlay";
+    o.innerHTML=`<div class="card result"><h2>${title}</h2><div class="big" style="color:${cls}">${big}</div><p class="muted">${curGame===PRACTICE?"Practice game — no money involved.":st===DRAW?"Stakes were returned.":st===CANCELLED?"":g.vsComputer&&st===O_WON?"Your stake went to the house bank.":`Paid out automatically to the winner's wallet.`}</p><div class="acts">${curGame===PRACTICE?`<button class="btn" data-a="practice">Play again</button>`:mySide?`<button class="btn" data-a="again">Play again (${usdC(stakeC)})</button>`:""}<button class="btn ghost" data-a="lobby">Lobby</button><button class="btn ghost" data-a="stay">See board</button></div></div>`;
+    o.onclick=async e=>{ const a=e.target.dataset?.a; if(!a&&e.target!==o) return; o.remove();
+      const wasCpu=g.vsComputer;
+      if(a==="lobby") account?goLobby():location.reload();
+      else if(a==="practice") startPractice();
+      else if(a==="again"){ $("stake").value=stakeC; onStake(); goLobby(); (wasCpu?$("btnCpu"):$("btnPlay")).click(); } };
+    document.body.appendChild(o);
+  },700);
+}
+$("btnLeave").onclick=()=>{ if(!account){ stopPoll(); curGame=0; show("vLanding"); return; } goLobby(); };
+
+/* ---------- admin ---------- */
+$("adminChip").onclick=()=>{ stopPoll(); curGame=0; show("vAdmin"); loadAdmin(); };
+$("aBack").onclick=e=>{ e.preventDefault(); goLobby(); };
+async function loadAdmin(){
+  const i=await loadInfo(); const [fee,min,max,step,to,gr,fb,fixed,paused,own]=await Promise.all(["moveFeeMicroUsd","minStakeCents","maxStakeCents","stakeStepCents","moveTimeout","firstMoveGrace","fallbackWeiPerUsd","useFixedPrice","paused","owner"].map(f=>R(f)));
+  $("aGames").textContent=i.games; $("aFin").textContent=i.finished; $("aVol").textContent=ethS(i.volume)+" ETH"; $("aFees").textContent="$"+(Number(i.fees)/1e6).toFixed(2);
+  $("aEth").textContent="$"+Math.round(1e18/Number(i.wpu)).toLocaleString();
+  $("aMoveFee").value=Number(fee)/1e6; $("aMin").value=Number(min)/100; $("aMax").value=Number(max)/100; $("aStep").value=Number(step)/100;
+  $("aTimeout").value=Number(to); $("aGrace").value=Number(gr); $("aFallback").value=Math.round(1e18/Number(fb)); $("aFixed").checked=fixed;
+  $("aPause").textContent=paused?"Paused — click to resume":"Running — click to pause";
+  $("aPause").onclick=async()=>{ try{ await mainTx("setPaused",[!paused]); toast("Saved","ok"); loadAdmin(); }catch(e){ toast(friendly(e),"err"); } };
+  $("aLink").href=`${EXPLORER}/address/${CA}`; $("aLink").textContent=CA; $("aOwner").textContent=own;
+  const ci=await R("computerInfo"); $("aBank").textContent=`${ethS(ci[2])} ETH ≈ $${(Number(ci[2])/Number(i.wpu)).toFixed(2)}`; $("aBankMax").textContent=usdC(Math.floor(Number(ci[3])/10)*10);
+  $("aCpuOn").checked=ci[0]; $("aMistake").value=Number(ci[1]);
+}
+$("aFund").onclick=async()=>{ try{ const wpu=await R("weiPerUsd"); const v=wpu*BigInt(Math.round(parseFloat($("aFundUsd").value)*100))/100n; await mainTx("fundHouse",[],v); toast("House bank funded","ok"); loadAdmin(); }catch(e){ toast(friendly(e),"err"); } };
+$("aWd").onclick=async()=>{ try{ const wpu=await R("weiPerUsd"); const v=wpu*BigInt(Math.round(parseFloat($("aWdUsd").value)*100))/100n; await mainTx("withdrawHouse",[v]); toast("Withdrawn to your wallet","ok"); loadAdmin(); }catch(e){ toast(friendly(e),"err"); } };
+$("aSaveCpu").onclick=async()=>{ try{ await mainTx("setComputer",[$("aCpuOn").checked,parseInt($("aMistake").value)]); toast("Saved","ok"); loadAdmin(); }catch(e){ toast(friendly(e),"err"); } };
+const adminSave=(btn,fn,argsFn)=>$(btn).onclick=async()=>{ try{ await mainTx(fn,argsFn()); toast("Saved","ok"); loadAdmin(); }catch(e){ toast(friendly(e),"err"); } };
+adminSave("aSaveFee","setMoveFee",()=>[Math.round(parseFloat($("aMoveFee").value)*1e6)]);
+adminSave("aSaveStake","setStakeLimits",()=>[Math.round(parseFloat($("aMin").value)*100),Math.round(parseFloat($("aMax").value)*100),Math.round(parseFloat($("aStep").value)*100)]);
+adminSave("aSaveTime","setTimeouts",()=>[parseInt($("aTimeout").value),parseInt($("aGrace").value)]);
+adminSave("aSavePrice","setFallbackWeiPerUsd",()=>[10n**18n*100n/BigInt(Math.round(parseFloat($("aFallback").value)*100)),$("aFixed").checked]);
+
+/* ================= GO ================= */
+const preview=(()=>{ const a=store.get("ttb_preview_contract",null); return a&&E.isAddress(a)?a:null; })();
+if(E.isAddress(CONTRACT_ADDRESS)){ CA=E.getAddress(CONTRACT_ADDRESS); initApp(); }
+else if(preview && new URLSearchParams(location.search).has("preview")){ CA=preview; initApp(); }
+else initSetup();
+}
+</script>
+</body>
+</html>
