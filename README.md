@@ -12,7 +12,10 @@
 - 🤖 **Play vs computer** — the house bank matches your stake; the computer answers instantly (it can be beaten!).
 - 🆓 **Free practice mode** vs the computer, no wallet needed.
 - ⚡ **No wallet pop-ups during the game** — a small in-browser game wallet pays move fees and gas. Stakes and winnings always go to your main wallet.
-- 🔗 Quick match by stake, open games lobby, invite link, stats (wins / losses / draws), admin panel.
+- 🏆 **On-chain leaderboard & player profiles** — nickname, level, XP, games played, wins / draws / losses, win streaks, wins vs computer, amount won. Everything is stored on Base and updates after every game.
+- ⭐ **Levels**: +30 XP per win, +15 draw, +5 loss. Level-ups are recorded on-chain (LevelUp event).
+- 🔗 Quick match by stake, open games lobby, invite link, admin panel.
+- 👛 Works with any wallet (EIP-6963 multi-wallet discovery: MetaMask, Coinbase Wallet, Rabby…).
 - Works with MetaMask, Coinbase Wallet and any EVM wallet on Base. Prices in USD, paid in ETH (Chainlink ETH/USD oracle).
 
 ## Files
@@ -21,4 +24,4 @@
 
 > Computer moves use `block.prevrandao` for randomness — fine for a casual game. Play responsibly.
 
-**Keywords:** tic tac toe base, base network game, onchain game, web3 game, crypto game, blockchain game, Base L2 dApp, play to earn, PvP game, noughts and crosses, kółko i krzyżyk, gra na Base.
+**Keywords:** tic tac toe base, base network game, onchain game, web3 game, crypto game, blockchain game, Base L2 dApp, play to earn, PvP game, leaderboard, player levels, noughts and crosses, kółko i krzyżyk, gra na Base.

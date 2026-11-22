@@ -59,7 +59,22 @@ contract TicTacBase {
         uint32 wins;
         uint32 losses;
         uint32 draws;
-        uint256 wonWei;
+        uint32 games;
+        uint32 xp;         // +30 win, +15 draw, +5 loss
+        uint16 level;      // level n needs 25*n*(n-1) xp
+        uint16 streak;     // current win streak
+        uint16 bestStreak;
+        uint32 cpuWins;    // wins against the computer
+        uint64 joined;
+        uint256 wonWei;    // opponent stakes won
+        uint256 lostWei;   // own stakes lost
+    }
+
+    struct PlayerRow {
+        address player;
+        string nick;
+        uint32 points;     // 3 per win, 1 per draw
+        Stats s;
     }
 
     // ---------- config ----------
@@ -87,6 +102,9 @@ contract TicTacBase {
     mapping(address => uint256[]) private gamesOf;
     mapping(address => Stats) public stats;
     mapping(address => uint256) public pendingWithdrawals;
+    address[] private playerList;
+    mapping(address => bool) private isPlayer;
+    mapping(address => string) public nickOf;
 
     uint256 public escrowWei;
     uint256 public totalPendingWei;
@@ -105,6 +123,8 @@ contract TicTacBase {
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event HouseFunded(address indexed from, uint256 amount, uint256 bank);
     event HouseWithdrawn(uint256 amount, uint256 bank);
+    event NickSet(address indexed player, string nick);
+    event LevelUp(address indexed player, uint16 level, uint32 xp);
 
     // ---------- errors ----------
     error NotOwner();
@@ -124,6 +144,7 @@ contract TicTacBase {
     error TransferFailed();
     error HouseTooSmall();
     error ComputerOff();
+    error BadNick();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -180,8 +201,9 @@ contract TicTacBase {
 
     /// @notice Create a game with a stake. Anything sent above the stake is forwarded to `session`
     ///         (your in-browser game wallet that pays move fees), or refunded if session is zero.
-    function createGame(uint32 stakeCents, address session) external payable nonReentrant returns (uint256 id) {
+    function createGame(uint32 stakeCents, address session, string calldata nick) external payable nonReentrant returns (uint256 id) {
         if (paused) revert Paused();
+        _touch(msg.sender, nick);
         if (!validStake(stakeCents)) revert BadStake();
         uint256 stake = stakeWeiFor(stakeCents);
         if (msg.value < stake) revert FeeTooLow(stake, msg.value);
@@ -206,8 +228,9 @@ contract TicTacBase {
     }
 
     /// @notice Join an open game by paying the same stake. The first turn is chosen at random.
-    function joinGame(uint256 id, address session) external payable nonReentrant {
+    function joinGame(uint256 id, address session, string calldata nick) external payable nonReentrant {
         if (paused) revert Paused();
+        _touch(msg.sender, nick);
         Game storage g = games[id];
         if (g.status != OPEN) revert NotOpen();
         if (msg.sender == g.playerX) revert OwnGame();
@@ -231,8 +254,9 @@ contract TicTacBase {
     }
 
     /// @notice Play against the computer. The house bank matches your stake. You are X.
-    function playComputer(uint32 stakeCents, address session) external payable nonReentrant returns (uint256 id) {
+    function playComputer(uint32 stakeCents, address session, string calldata nick) external payable nonReentrant returns (uint256 id) {
         if (paused) revert Paused();
+        _touch(msg.sender, nick);
         if (!computerEnabled) revert ComputerOff();
         if (!validStake(stakeCents)) revert BadStake();
         uint256 stake = stakeWeiFor(stakeCents);
@@ -411,6 +435,41 @@ contract TicTacBase {
         return (gameCount, finishedGames, totalVolumeWei, totalFeesMicroUsd, weiPerUsd(), moveFeeWei(), moveTimeout, minStakeCents, maxStakeCents, stakeStepCents);
     }
 
+    /// @notice Set your public name for the leaderboard (max 20 bytes). Costs only gas.
+    function setNick(string calldata nick) external {
+        if (bytes(nick).length == 0) revert BadNick();
+        _touch(msg.sender, nick);
+    }
+
+    function playersCount() external view returns (uint256) {
+        return playerList.length;
+    }
+
+    /// @notice Leaderboard rows (unsorted, in join order). Sort on the client by points / wins / won.
+    function getLeaderboard(uint256 offset, uint256 limit) external view returns (PlayerRow[] memory rows) {
+        uint256 n = playerList.length;
+        if (offset >= n) return new PlayerRow[](0);
+        uint256 end = offset + limit > n ? n : offset + limit;
+        rows = new PlayerRow[](end - offset);
+        for (uint256 i = offset; i < end; i++) rows[i - offset] = _row(playerList[i]);
+    }
+
+    function getPlayer(address player) external view returns (PlayerRow memory) {
+        return _row(player);
+    }
+
+    function _row(address a) private view returns (PlayerRow memory r) {
+        r.player = a;
+        r.nick = nickOf[a];
+        r.s = stats[a];
+        r.points = r.s.wins * 3 + r.s.draws;
+    }
+
+    /// @notice XP needed to reach a level.
+    function xpForLevel(uint16 level) public pure returns (uint32) {
+        return level <= 1 ? 0 : uint32(25) * level * (level - 1);
+    }
+
     function computerInfo() external view returns (bool enabled, uint8 mistakePct, uint256 bankWei, uint256 maxStakeCentsVsComputer) {
         uint256 wpu = weiPerUsd();
         uint256 maxC = wpu == 0 ? 0 : (houseBank * 100) / wpu;
@@ -480,6 +539,23 @@ contract TicTacBase {
     //                              INTERNAL
     // =====================================================================
 
+    function _touch(address a, string calldata nick) private {
+        if (!isPlayer[a]) {
+            isPlayer[a] = true;
+            playerList.push(a);
+            stats[a].joined = uint64(block.timestamp);
+            stats[a].level = 1;
+        }
+        uint256 len = bytes(nick).length;
+        if (len > 0) {
+            if (len > 20) revert BadNick();
+            if (keccak256(bytes(nick)) != keccak256(bytes(nickOf[a]))) {
+                nickOf[a] = nick;
+                emit NickSet(a, nick);
+            }
+        }
+    }
+
     function _place(uint256 id, Game storage g, uint8 cell, bool forced) private {
         uint8 side = g.turn;
         g.board |= uint32(side) << (cell * 2);
@@ -507,38 +583,59 @@ contract TicTacBase {
         escrowWei -= stake * 2;
         finishedGames += 1;
         address px = g.playerX;
-        if (g.vsComputer) {
-            if (result == DRAW) {
-                stats[px].draws += 1;
-                houseBank += stake;
-                emit GameFinished(id, result, address(0), stake);
-                _pay(px, stake);
-            } else if (result == X_WON) {
-                stats[px].wins += 1;
-                stats[px].wonWei += stake;
-                emit GameFinished(id, result, px, stake * 2);
-                _pay(px, stake * 2);
-            } else {
-                stats[px].losses += 1;
-                houseBank += stake * 2;
-                emit GameFinished(id, result, address(this), stake * 2);
-            }
-            return;
-        }
+        bool cpu = g.vsComputer;
         if (result == DRAW) {
-            stats[px].draws += 1;
-            stats[g.playerO].draws += 1;
+            _record(px, 1, 0, cpu);
+            if (cpu) houseBank += stake; else _record(g.playerO, 1, 0, false);
             emit GameFinished(id, result, address(0), stake);
             _pay(px, stake);
-            _pay(g.playerO, stake);
+            if (!cpu) _pay(g.playerO, stake);
+        } else if (result == X_WON) {
+            _record(px, 2, stake, cpu);
+            if (!cpu) _record(g.playerO, 0, stake, false);
+            emit GameFinished(id, result, px, stake * 2);
+            _pay(px, stake * 2);
         } else {
-            address winner = result == X_WON ? px : g.playerO;
-            address loser = result == X_WON ? g.playerO : px;
-            stats[winner].wins += 1;
-            stats[winner].wonWei += stake;
-            stats[loser].losses += 1;
-            emit GameFinished(id, result, winner, stake * 2);
-            _pay(winner, stake * 2);
+            _record(px, 0, stake, cpu);
+            if (cpu) {
+                houseBank += stake * 2;
+                emit GameFinished(id, result, address(this), stake * 2);
+            } else {
+                _record(g.playerO, 2, stake, false);
+                emit GameFinished(id, result, g.playerO, stake * 2);
+                _pay(g.playerO, stake * 2);
+            }
+        }
+    }
+
+    /// @dev outcome: 0 loss, 1 draw, 2 win. Updates the on-chain profile and levels up.
+    function _record(address a, uint8 outcome, uint256 stake, bool cpu) private {
+        Stats storage st = stats[a];
+        st.games += 1;
+        if (outcome == 2) {
+            st.wins += 1;
+            st.xp += 30;
+            st.wonWei += stake;
+            st.streak += 1;
+            if (st.streak > st.bestStreak) st.bestStreak = st.streak;
+            if (cpu) st.cpuWins += 1;
+        } else {
+            st.streak = 0;
+            if (outcome == 1) {
+                st.draws += 1;
+                st.xp += 15;
+            } else {
+                st.losses += 1;
+                st.xp += 5;
+                st.lostWei += stake;
+            }
+        }
+        uint16 lvl = st.level == 0 ? 1 : st.level;
+        while (st.xp >= xpForLevel(lvl + 1)) lvl++;
+        if (lvl != st.level) {
+            bool up = lvl > st.level && st.level != 0;
+            st.level = lvl;
+            if (up || lvl > 1) emit LevelUp(a, lvl, st.xp);
         }
     }
 
