@@ -4,6 +4,11 @@
 
 👉 **Play now: https://0xdonaldjtrump.github.io/tictacbase/**
 
+## Screenshots
+| Lobby | Game | Level up |
+|---|---|---|
+| ![Lobby](docs/screenshots/lobby.png) | ![Game](docs/screenshots/game.png) | ![Level up](docs/screenshots/levelup.png) |
+
 ## How it works
 - 🎚️ **Pick your stake with a slider: $0.10 – $5.00** (steps of $0.10). Both players put in the same stake.
 - ❌⭕ **Every X or O costs a small move fee** ($0.01 by default).
